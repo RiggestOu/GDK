@@ -18,12 +18,19 @@ jobs:
 
       - name: Install OpenDingux gcw0 toolchain
         run: |
-          sudo apt-get update || sudo apt-get update
+          sudo apt-get update
           sudo apt-get install -y squashfs-tools xz-utils curl
-          TC_URL="https://github.com/OpenDingux/buildroot/releases/download/od-2022.09.22/opendingux-gcw0-toolchain.2022-09.22.tar.xz"
+          # 注意：发布标签是 od-2022.09.22（点），但工具链包名用的是 2022-09-22（连字符）
+          TC_URL="https://github.com/OpenDingux/buildroot/releases/download/od-2022.09.22/opendingux-gcw0-toolchain.2022-09-22.tar.xz"
           echo "==> Downloading toolchain: $TC_URL"
-          curl -fL --retry 5 --retry-delay 5 -o /tmp/tc.tar.xz "$TC_URL"
+          curl -fL --retry 5 --retry-delay 5 -C - -o /tmp/tc.tar.xz "$TC_URL"
           echo "==> Downloaded file:"; ls -lh /tmp/tc.tar.xz
+          # 体积校验：工具链约 100MB+，小于 10MB 视为下载失败
+          SIZE=$(stat -c%s /tmp/tc.tar.xz 2>/dev/null || echo 0)
+          echo "==> File size bytes: $SIZE"
+          if [ "$SIZE" -lt 10485760 ]; then
+            echo "!! ERROR: toolchain download too small, aborting"; exit 1
+          fi
           sudo tar -xJf /tmp/tc.tar.xz -C /opt
           sudo chmod -R a+rX /opt/gcw0-toolchain
           echo "==> Toolchain binaries:"; ls /opt/gcw0-toolchain/bin | head
