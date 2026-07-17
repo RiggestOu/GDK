@@ -1,0 +1,56 @@
+name: Build EPUBReader.opk
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# 允许 CI 把产物推回仓库的 build 分支（git 交付，绕开被墙的 GitHub 下载 CDN）
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OpenDingux gcw0 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools wget xz-utils
+          wget -qO /tmp/tc.tar.xz https://github.com/OpenDingux/buildroot/releases/download/od-2022.09.22/opendingux-gcw0-toolchain.2022-09.22.tar.xz
+          sudo tar -xJf /tmp/tc.tar.xz -C /opt
+          sudo chmod -R a+rX /opt/gcw0-toolchain
+
+      - name: Build & package .opk
+        run: |
+          cd src
+          ./package.sh
+
+      - name: Upload artifact (仅当你能访问 GitHub 网页下载时才有用)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EPUBReader.opk
+          path: src/EPUBReader.opk
+
+      - name: Push .opk back to build branch (git 交付)
+        run: |
+          cp src/EPUBReader.opk /tmp/EPUBReader.opk
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan build
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/EPUBReader.opk EPUBReader.opk
+          git add EPUBReader.opk
+          git commit -m "ci: build EPUBReader.opk $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            && git push origin build --force \
+            || echo "skip push (no changes)"
+
+# 说明：
+# - CI 跑在 GitHub 云机器上（网络通畅），自行下载工具链 + 交叉编译 + 打包 .opk。
+# - 产物通过 git 推到 build 分支；你在本机用 `git fetch origin build` 再
+#   `git checkout origin/build -- EPUBReader.opk` 取回，走 git 协议，不碰下载 CDN。
+# - 中文需 CJK 字体：把开源中文字体(文泉驿/Noto CJK)命名为 font.ttf 放进 src/ 再 push，CI 会一并打包。

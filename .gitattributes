@@ -1,0 +1,6 @@
+# 强制脚本/配置使用 LF，避免 Windows CRLF 在 Linux 构建机上导致 "bad interpreter"
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.desktop text eol=lf
+Makefile.gcw0 text eol=lf

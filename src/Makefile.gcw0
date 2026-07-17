@@ -1,0 +1,29 @@
+# Makefile.gcw0 — 为 GDK mini (MIPS / uClibc / SDL1.2) 交叉编译 EPUB 阅读器
+# 在 WSL2 Ubuntu 内运行:  make -f Makefile.gcw0
+
+TARGET    = epubreader
+TOOLCHAIN = /opt/gcw0-toolchain
+CROSS     = $(TOOLCHAIN)/bin/mipsel-gcw0-linux-uclibc-
+CC        = $(CROSS)gcc
+SYSROOT   = $(TOOLCHAIN)/mipsel-gcw0-linux-uclibc/sysroot
+
+# SDL1.2 / SDL_ttf / SDL_image / zlib 头文件都在 sysroot/usr/include 下
+CFLAGS  = -O2 -Wall -Wno-unused -I$(SYSROOT)/usr/include -I$(SYSROOT)/usr/include/SDL
+LDFLAGS = -L$(SYSROOT)/usr/lib
+LIBS    = -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
+
+SRCS = main.c epub.c zip.c render.c util.c
+OBJS = $(SRCS:.c=.o)
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean
