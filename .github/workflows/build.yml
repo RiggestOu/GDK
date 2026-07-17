@@ -25,7 +25,7 @@ jobs:
           echo "==> Downloading toolchain: $TC_URL"
           curl -fL --retry 5 --retry-delay 5 -C - -o /tmp/tc.tar.xz "$TC_URL"
           echo "==> Downloaded file:"; ls -lh /tmp/tc.tar.xz
-          # 体积校验：工具链约 100MB+，小于 10MB 视为下载失败
+          # 体积校验：工具链约 150MB，小于 10MB 视为下载失败
           SIZE=$(stat -c%s /tmp/tc.tar.xz 2>/dev/null || echo 0)
           echo "==> File size bytes: $SIZE"
           if [ "$SIZE" -lt 10485760 ]; then
@@ -38,30 +38,18 @@ jobs:
       - name: Build & package .opk
         run: |
           cd src
-          ./package.sh
+          ./package.sh 2>&1 | tee /tmp/build.log
 
-      - name: Upload artifact (仅当你能访问 GitHub 网页下载时才有用)
-        uses: actions/upload-artifact@v4
+      - name: Deliver artifacts via git (绕开下载 CDN)
         if: always()
-        with:
-          name: EPUBReader.opk
-          path: src/EPUBReader.opk
-
-      - name: Push .opk back to build branch (git 交付)
         run: |
-          cp src/EPUBReader.opk /tmp/EPUBReader.opk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout --orphan build
           git rm -rf . >/dev/null 2>&1 || true
-          cp /tmp/EPUBReader.opk EPUBReader.opk
-          git add EPUBReader.opk
-          git commit -m "ci: build EPUBReader.opk $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          cp src/EPUBReader.opk EPUBReader.opk 2>/dev/null || true
+          cp /tmp/build.log build.log 2>/dev/null || true
+          git add -A
+          git commit -m "ci: deliver $(date -u +%Y%m%dT%H%M%SZ)" >/dev/null 2>&1 \
             && git push origin build --force \
-            || echo "skip push (no changes)"
-
-# 说明：
-# - CI 跑在 GitHub 云机器上（网络通畅），自行下载工具链 + 交叉编译 + 打包 .opk。
-# - 产物通过 git 推到 build 分支；你在本机用 `git fetch origin build` 再
-#   `git checkout origin/build -- EPUBReader.opk` 取回，走 git 协议，不碰下载 CDN。
-# - 中文需 CJK 字体：把开源中文字体(文泉驿/Noto CJK)命名为 font.ttf 放进 src/ 再 push，CI 会一并打包。
+            || echo "nothing to deliver"
