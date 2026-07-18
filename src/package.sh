@@ -24,7 +24,9 @@ else
   echo "   请从网上下载一款开源中文字体(如文泉驿/Noto CJK)并重命名为 font.ttf 放到本目录，再打包。"
 fi
 
-# 自动打包二进制依赖的动态库，使 app 自包含（不依赖设备固件是否带齐 libSDL_ttf/libSDL_image/libz 等）
+# 自动打包二进制依赖的动态库（递归），使 app 自包含。
+# 关键点：不仅要打包 epubreader 直接依赖的库，还要递归打包它们的传递依赖
+# （例如 libSDL_ttf 依赖 libts.so.0 —— 之前漏打 libts 导致运行期 "can't load library 'libts.so.0'"）。
 TOOLCHAIN=/opt/gcw0-toolchain
 CROSS_BIN="$TOOLCHAIN/bin/mipsel-gcw0-linux-uclibc-"
 OBJDUMP="${CROSS_BIN}objdump"
@@ -32,22 +34,31 @@ SYSROOT="$TOOLCHAIN/mipsel-gcw0-linux-uclibc/sysroot"
 LIBDIR="$SYSROOT/usr/lib"
 if [ -x "${CROSS_BIN}objdump" ] && [ -d "$LIBDIR" ]; then
   mkdir -p pkg/lib
-  echo "==> 分析依赖并打包动态库 ..."
-  for lib in $("$OBJDUMP" -p epubreader 2>/dev/null | awk '/NEEDED/ {print $2}'); do
-    # 核心 libSDL 用设备自带的(af-84 能跑证明设备的 SDL 已适配 GDK mini 屏幕/按键)；
-    # libpthread 在 uClibc 下并入 libc，也不打包。只打包可能缺失的 SDL_ttf/SDL_image/z 等。
-    case "$lib" in
-      libSDL-1.2.so*|libSDL.so*|libpthread*|libc.so*|libm.so*|libgcc_s.so*|ld-uClibc*)
-        echo "    (跳过 $lib: 使用设备自带基库，覆盖会导致 ABI 不匹配崩溃)"; continue ;;
-    esac
-    found=$(find "$LIBDIR" -maxdepth 1 -name "$lib" 2>/dev/null | head -1)
-    if [ -n "$found" ]; then
-      cp -L "$found" "pkg/lib/$lib"
-      echo "    bundled $lib"
-    else
-      echo "    (跳过 $lib: 可能由系统 libc/基库提供)"
-    fi
+  echo "==> 递归分析依赖并打包动态库 ..."
+  SEEN=$(mktemp)
+  to_scan="epubreader"
+  while [ -n "$to_scan" ]; do
+    cur=$(echo "$to_scan" | cut -d' ' -f1)
+    to_scan=$(echo "$to_scan" | cut -d' ' -f2-)
+    for lib in $("$OBJDUMP" -p "$cur" 2>/dev/null | awk '/NEEDED/ {print $2}'); do
+      # 核心 libSDL 与系统基库用设备自带的（覆盖会导致 ABI 不匹配崩溃）
+      case "$lib" in
+        libSDL-1.2.so*|libSDL.so*|libpthread*|libc.so*|libm.so*|libgcc_s.so*|ld-uClibc*)
+          echo "    (跳过 $lib: 使用设备自带基库)"; continue ;;
+      esac
+      grep -qxF "$lib" "$SEEN" 2>/dev/null && continue
+      echo "$lib" >> "$SEEN"
+      found=$(find "$LIBDIR" -maxdepth 1 -name "$lib" 2>/dev/null | head -1)
+      if [ -n "$found" ]; then
+        cp -L "$found" "pkg/lib/$lib"
+        echo "    bundled $lib"
+        to_scan="$to_scan pkg/lib/$lib"
+      else
+        echo "    (跳过 $lib: 可能由系统 libc/基库提供)"
+      fi
+    done
   done
+  rm -f "$SEEN"
   echo "==> 已打包 $(ls pkg/lib 2>/dev/null | wc -l) 个依赖库到 pkg/lib"
 else
   echo "!! 未找到交叉工具链，跳过动态库打包（依赖设备固件自带）"
