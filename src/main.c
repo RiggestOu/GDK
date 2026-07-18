@@ -21,6 +21,16 @@ static enum Action key_to_action(int key) {
     }
 }
 
+/* SDL1.2 没有 SDL_WaitEventTimeout,用 PollEvent + Delay 模拟相同的带超时等待 */
+static int wait_event_timeout(SDL_Event *ev, Uint32 timeout_ms) {
+    Uint32 start = SDL_GetTicks();
+    for (;;) {
+        if (SDL_PollEvent(ev)) return 1;
+        if ((SDL_GetTicks() - start) >= timeout_ms) return 0;
+        SDL_Delay(10);
+    }
+}
+
 /* ---------- 文件浏览 ---------- */
 typedef struct { char **paths; int n, cap; } filelist_t;
 
@@ -170,7 +180,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book) {
             draw_toc(ui, &r, toc_sel);
         }
         SDL_Event ev;
-        if (!SDL_WaitEventTimeout(&ev, 300)) continue;
+        if (!wait_event_timeout(&ev, 300)) continue;
         enum Action act = A_NONE;
         if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
         else if (ev.type == SDL_JOYBUTTONDOWN) {
@@ -278,7 +288,7 @@ int main(int argc, char **argv) {
     while (!quit) {
         draw_browser(ui, &list, sel);
         SDL_Event ev;
-        if (!SDL_WaitEventTimeout(&ev, 300)) continue;
+        if (!wait_event_timeout(&ev, 300)) continue;
         enum Action act = A_NONE;
         if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
         else if (ev.type == SDL_JOYBUTTONDOWN) {
