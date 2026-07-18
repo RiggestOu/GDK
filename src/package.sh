@@ -37,7 +37,8 @@ if [ -x "${CROSS_BIN}objdump" ] && [ -d "$LIBDIR" ]; then
     # 核心 libSDL 用设备自带的(af-84 能跑证明设备的 SDL 已适配 GDK mini 屏幕/按键)；
     # libpthread 在 uClibc 下并入 libc，也不打包。只打包可能缺失的 SDL_ttf/SDL_image/z 等。
     case "$lib" in
-      libSDL-1.2.so*|libSDL.so*|libpthread*) echo "    (跳过 $lib: 使用设备自带基库)"; continue ;;
+      libSDL-1.2.so*|libSDL.so*|libpthread*|libc.so*|libm.so*|libgcc_s.so*|ld-uClibc*)
+        echo "    (跳过 $lib: 使用设备自带基库，覆盖会导致 ABI 不匹配崩溃)"; continue ;;
     esac
     found=$(find "$LIBDIR" -maxdepth 1 -name "$lib" 2>/dev/null | head -1)
     if [ -n "$found" ]; then
