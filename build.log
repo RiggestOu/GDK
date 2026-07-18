@@ -1,0 +1,47 @@
+==> 编译 ...
+rm -f main.o epub.o zip.o render.o util.o epubreader
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c main.c -o main.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c epub.c -o epub.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c zip.c -o zip.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c render.c -o render.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c util.c -o util.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -L/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/lib -o epubreader main.o epub.o zip.o render.o util.o -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
+==> 已包含 font.ttf (CJK 字体)
+==> 分析依赖并打包动态库 ...
+    (跳过 libSDL-1.2.so.0: 使用设备自带基库，覆盖会导致 ABI 不匹配崩溃)
+    bundled libSDL_ttf-2.0.so.0
+    bundled libSDL_image-1.2.so.0
+    bundled libz.so.1
+    (跳过 libc.so.0: 使用设备自带基库，覆盖会导致 ABI 不匹配崩溃)
+==> 已打包 3 个依赖库到 pkg/lib
+Parallel mksquashfs: Using 4 processors
+Creating 4.0 filesystem on EPUBReader.opk, block size 131072.
+
+Exportable Squashfs 4.0 filesystem, gzip compressed, data block size 131072
+	compressed data, compressed metadata, compressed fragments,
+	compressed xattrs, compressed ids
+	duplicates are removed
+Filesystem size 5071.82 Kbytes (4.95 Mbytes)
+	52.15% of uncompressed filesystem size (9724.81 Kbytes)
+Inode table size 383 bytes (0.37 Kbytes)
+	61.58% of uncompressed inode table size (622 bytes)
+Directory table size 165 bytes (0.16 Kbytes)
+	79.33% of uncompressed directory table size (208 bytes)
+Number of duplicate files found 0
+Number of inodes 10
+Number of files 8
+Number of fragments 2
+Number of symbolic links 0
+Number of device nodes 0
+Number of fifo nodes 0
+Number of socket nodes 0
+Number of directories 2
+Number of hard-links 0
+Number of ids (unique uids + gids) 1
+Number of uids 1
+	root (0)
+Number of gids 1
+	root (0)
+
+==> 已生成 EPUBReader.opk
+    把它复制到 SD 卡 (H: 盘) 的 APPS 目录，在 GDK mini 菜单里即可看到 EPUB Reader。

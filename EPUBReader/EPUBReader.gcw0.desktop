@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=EPUB Reader
+Comment=EPUB 3.0 reader for GDK mini (MIPS/uClibc/SDL1.2)
+Exec=launch.sh
+Icon=icon
+Type=Application
+Categories=utilities;
+X-OD-NeedsJoystick=true
+Terminal=false
