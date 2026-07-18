@@ -37,8 +37,11 @@ jobs:
 
       - name: Build & package .opk
         run: |
+          set -o pipefail
           cd src
-          ./package.sh 2>&1 | tee /tmp/build.log
+          # Windows 提交的脚本在 Linux checkout 后可能无 +x 或带 CRLF，先规范化再用 bash 调用
+          sed -i 's/\r$//' package.sh 2>/dev/null || true
+          bash ./package.sh 2>&1 | tee /tmp/build.log
 
       - name: Deliver artifacts via git (绕开下载 CDN)
         if: always()
