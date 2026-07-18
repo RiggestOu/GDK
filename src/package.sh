@@ -13,6 +13,7 @@ make -f Makefile.gcw0
 rm -rf pkg && mkdir -p pkg
 cp epubreader pkg/
 cp EPUBReader.gcw0.desktop pkg/
+cp icon.png pkg/ 2>/dev/null || true
 
 # CJK 字体：用户需自行提供一个 .ttf 命名为 font.ttf 放在本目录
 if [ -f font.ttf ]; then
