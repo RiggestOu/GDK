@@ -4,8 +4,9 @@ epubreader
 EPUBReader.opk
 pkg/
 
-# 字体（用户自行放入，不入库）
-font.ttf
+# 字体：中文字体须命名为 font.ttf 放入 src/ 一并打包（需进仓库，故不再忽略）
+# 注意：若仓库公开分发，请用开源字体（文泉驿/Noto/Unifont），勿用微软专有字体
+# font.ttf
 
 # 工具链（构建时下载，不入库）
 /opt/
