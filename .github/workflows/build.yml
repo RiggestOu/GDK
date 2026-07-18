@@ -55,7 +55,7 @@ jobs:
           # GDK mini 的 iuxui 菜单只扫描 apps/ 下的「解压文件夹」，不认 .opk 压缩包；
           # 因此额外交付一个解压好的 app 文件夹（package.sh 生成的 src/pkg 内容）
           cp -r src/pkg EPUBReader 2>/dev/null || true
-          chmod +x EPUBReader/epubreader EPUBReader/launch.sh 2>/dev/null || true
+          chmod +x EPUBReader/epubreader EPUBReader/epubreader.dge 2>/dev/null || true
           # 注意: .opk / epubreader / pkg 都在 .gitignore 里, 用 git add -A 会被忽略而交付不出去;
           # 这里用 -f 强制加入交付物 (orphan 分支, 只放产物)
           git add -f EPUBReader.opk build.log EPUBReader
