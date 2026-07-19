@@ -31,6 +31,15 @@ static int wait_event_timeout(SDL_Event *ev, Uint32 timeout_ms) {
     }
 }
 
+/* IUX/OpenDingux 设备无桌面环境，SDL 必须显式指定帧缓冲驱动。
+   在程序启动最早期设置，确保即使 IUX 直接启动本二进制（绕过 .dge 启动器）
+   也能正确初始化显示设备。动态库路径由链接期 rpath 负责，这里不处理。 */
+static void setup_runtime_env(void) {
+    if (!getenv("SDL_VIDEODRIVER")) setenv("SDL_VIDEODRIVER", "fbcon", 1);
+    if (!getenv("SDL_FBDEV"))       setenv("SDL_FBDEV", "/dev/fb0", 1);
+    if (!getenv("SDL_NOMOUSE"))     setenv("SDL_NOMOUSE", "1", 1);
+}
+
 /* ---------- 文件浏览 ---------- */
 typedef struct { char **paths; int n, cap; } filelist_t;
 
@@ -229,6 +238,7 @@ static const char *candidate_roots[] = {
 };
 
 int main(int argc, char **argv) {
+    setup_runtime_env();
     const char *font = NULL;
     const char *scan_root = NULL;
     const char *direct_file = NULL;
