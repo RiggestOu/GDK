@@ -282,12 +282,25 @@ int main(int argc, char **argv) {
     filelist_t list = {0};
     if (scan_root) scan_dir(scan_root, &list, 0);
     if (list.n == 0) {
-        ui_clear(ui);
-        ui_text(ui, 6, 40, "未找到 .epub 文件");
-        ui_text(ui, 6, 60, "把书放到 SD 卡，或用");
-        ui_text(ui, 6, 80, "epubreader <目录|文件> 启动");
-        ui_flip(ui);
-        SDL_Delay(2500);
+        /* 没找到书时显示提示并等待用户按返回键退出，不再自动闪退 */
+        int empty_quit = 0;
+        while (!empty_quit) {
+            ui_clear(ui);
+            ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 40, 60, 110);
+            ui_text(ui, ui->margin, 1, "EPUB Reader");
+            ui_text(ui, 6, 40, "未找到 .epub 文件");
+            ui_text(ui, 6, 60, "请把电子书放到 SD 卡");
+            ui_text(ui, 6, 80, "按 B/ESC 返回菜单");
+            ui_flip(ui);
+            SDL_Event ev;
+            if (!wait_event_timeout(&ev, 300)) continue;
+            enum Action act = A_NONE;
+            if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
+            else if (ev.type == SDL_JOYBUTTONDOWN) {
+                if (ev.jbutton.button == 1) act = A_BACK;
+            }
+            if (act == A_BACK) empty_quit = 1;
+        }
         for (int i = 0; i < list.n; i++) free(list.paths[i]);
         free(list.paths);
         ui_quit(ui);

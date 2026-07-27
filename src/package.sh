@@ -89,14 +89,17 @@ if [ -x "${CROSS_BIN}objdump" ] && [ -d "$LIBDIR" ]; then
     cur=$(echo "$to_scan" | cut -d' ' -f1)
     to_scan=$(echo "$to_scan" | cut -d' ' -f2-)
     for lib in $("$OBJDUMP" -p "$cur" 2>/dev/null | awk '/NEEDED/ {print $2}'); do
-      # 核心 libSDL 与系统基库用设备自带的（覆盖会导致 ABI 不匹配崩溃）
+      # ★ GKD mini 修复: 设备 /usr/lib 已自带全部依赖(SDL/freetype/png/jpeg/iconv/z),
+      #   且都是 fp32 兼容版本。我们自带的工具链版本是 fp64, 打包进去会导致 SIGILL。
+      #   因此除基库外, 下列库也一律用设备系统的, 不打包。
       case "$lib" in
-        libSDL-1.2.so*|libSDL.so*|libpthread*|libc.so*|libm.so*|libgcc_s.so*|ld-uClibc*)
+        libSDL-1.2.so*|libSDL.so*|libSDL_ttf*|libSDL_image*|libts*|libpthread*|libc.so*|libm.so*|libgcc_s.so*|ld-uClibc*)
           echo "    (跳过 $lib: 使用设备自带基库)"; continue ;;
       esac
-      # libdrm/libudev 是设备系统 libSDL 的依赖, 由固件在 /lib,/usr/lib 提供, 不打包
+      # 下列库设备 /usr/lib 也有, 用系统的(fp32兼容), 不打包
       case "$lib" in
-        libdrm.so*|libudev.so*) echo "    (跳过 $lib: 设备系统库)"; continue ;;
+        libfreetype*|libpng*|libjpeg*|libiconv*|libz*|libdrm.so*|libudev.so*)
+          echo "    (跳过 $lib: 设备系统库)"; continue ;;
       esac
       grep -qxF "$lib" "$SEEN" 2>/dev/null && continue
       echo "$lib" >> "$SEEN"
@@ -147,10 +150,11 @@ echo "==> 已生成启动器 pkg/epubreader.dge"
 # ============================================================
 mkdir -p "pkg/sections/applications"
 cat > "pkg/sections/applications/epubreader.lnk" <<EOF
-title=EPUB Reader
+title=电子书
 description=EPUB 电子书阅读器 (SDL1.2, MIPS)
+icon=$IUX_HOME/apps/epubreader/epubreader.png
 exec=$IUX_HOME/apps/epubreader/epubreader.dge
-clock=600
+selectorbrowser=false
 EOF
 echo "==> 已生成注册文件 pkg/sections/applications/epubreader.lnk (exec 前缀=$IUX_HOME)"
 

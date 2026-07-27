@@ -8,7 +8,10 @@ CC        = $(CROSS)gcc
 SYSROOT   = $(TOOLCHAIN)/mipsel-gcw0-linux-uclibc/sysroot
 
 # SDL1.2 / SDL_ttf / SDL_image / zlib 头文件都在 sysroot/usr/include 下
-CFLAGS  = -O2 -Wall -Wno-unused -I$(SYSROOT)/usr/include -I$(SYSROOT)/usr/include/SDL
+# ★ 关键修复(SIGILL): GKD mini 的 Ingenic JZ47xx FPU 仅支持 -mfp32,
+#   gcw0 工具链默认 -mfpxx(=mips32r2 下的 -mfp64) 会生成非法浮点指令。
+#   必须显式 -mfp32 -mno-fpxx,否则运行时 Illegal instruction (exit 132)。
+CFLAGS  = -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -mno-fpxx -I$(SYSROOT)/usr/include -I$(SYSROOT)/usr/include/SDL
 LDFLAGS = -L$(SYSROOT)/usr/lib
 LIBS    = -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
 
