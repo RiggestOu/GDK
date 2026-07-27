@@ -40,35 +40,90 @@ static void setup_runtime_env(void) {
     if (!getenv("SDL_NOMOUSE"))     setenv("SDL_NOMOUSE", "1", 1);
 }
 
-/* ---------- 文件浏览 ---------- */
-typedef struct { char **paths; int n, cap; } filelist_t;
-
+/* ---------- 可导航文件浏览器（支持进入任意目录） ---------- */
 static int ends_with(const char *s, const char *suf) {
     size_t ls = strlen(s), lf = strlen(suf);
     if (ls < lf) return 0;
     return strcasecmp(s + ls - lf, suf) == 0;
 }
-static void fl_add(filelist_t *l, const char *p) {
-    if (l->n >= l->cap) { l->cap = l->cap ? l->cap * 2 : 16; l->paths = realloc(l->paths, l->cap * sizeof(char *)); }
-    l->paths[l->n++] = strdup(p);
+
+typedef struct { char *name; int is_dir; } nav_ent_t;
+typedef struct { nav_ent_t *e; int n, cap; } nav_list_t;
+
+static void nav_add(nav_list_t *l, const char *name, int is_dir) {
+    if (l->n >= l->cap) { l->cap = l->cap ? l->cap * 2 : 16; l->e = realloc(l->e, l->cap * sizeof(nav_ent_t)); }
+    l->e[l->n].name = strdup(name);
+    l->e[l->n].is_dir = is_dir;
+    l->n++;
 }
-static void scan_dir(const char *dir, filelist_t *l, int depth) {
-    DIR *d = opendir(dir);
-    if (!d) return;
-    struct dirent *e;
-    char buf[1024];
-    while ((e = readdir(d))) {
-        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
-        snprintf(buf, sizeof(buf), "%s/%s", dir, e->d_name);
+static void nav_free(nav_list_t *l) {
+    for (int i = 0; i < l->n; i++) free(l->e[i].name);
+    free(l->e);
+    l->e = NULL; l->n = l->cap = 0;
+}
+/* 返回父目录（新分配字符串；根 "/" 的父仍是 "/"） */
+static char *parent_dir(const char *d) {
+    size_t n = strlen(d);
+    while (n > 1 && d[n-1] == '/') n--;
+    const char *slash = strrchr(d, '/');
+    if (!slash || slash == d) return strdup("/");
+    char *res = malloc(slash - d + 1);
+    memcpy(res, d, slash - d);
+    res[slash - d] = '\0';
+    return res;
+}
+/* 构建当前目录列表：先 ".."（非根），再子目录，再 .epub 文件（不限深度） */
+static void build_list(const char *dir, nav_list_t *l) {
+    if (strcmp(dir, "/") != 0) nav_add(l, "..", 1);
+    DIR *dp = opendir(dir);
+    if (!dp) return;
+    struct dirent *ent;
+    char buf[4096];
+    while ((ent = readdir(dp))) {
+        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
+        snprintf(buf, sizeof(buf), "%s/%s", dir, ent->d_name);
         struct stat st;
         if (stat(buf, &st) != 0) continue;
-        if (S_ISDIR(st.st_mode)) {
-            if (depth < 1) scan_dir(buf, l, depth + 1);
-        } else if (ends_with(e->d_name, ".epub")) {
-            fl_add(l, buf);
-        }
+        if (S_ISDIR(st.st_mode)) nav_add(l, ent->d_name, 1);
+        else if (ends_with(ent->d_name, ".epub")) nav_add(l, ent->d_name, 0);
     }
-    closedir(d);
+    closedir(dp);
+}
+/* read_book 在本文件较后面定义，这里前置声明以便 open_epub 调用 */
+static void read_book(reader_ui_t *ui, epub_t *ep, const char *book);
+
+/* 打开一个 epub 的完整路径 */
+static void open_epub(reader_ui_t *ui, const char *path) {
+    zip_t *z = zip_open(path);
+    if (!z) return;
+    epub_t *ep = epub_open(z);
+    if (ep) { read_book(ui, ep, path); epub_close(ep); }
+    zip_close(z);
+}
+
+/* ---------- 绘制：可导航文件浏览器 ---------- */
+static void draw_nav(reader_ui_t *ui, const char *cwd, nav_list_t *l, int sel) {
+    ui_clear(ui);
+    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 40, 60, 110);
+    char title[60];
+    snprintf(title, sizeof(title), "浏览: %s", cwd);
+    ui_text(ui, ui->margin, 1, title);
+    int y = ui->title_h + 2;
+    int visible = (SCREEN_H - ui->title_h - ui->prog_h) / ui->line_h;
+    int first = sel - visible / 2; if (first < 0) first = 0;
+    for (int i = first; i < l->n && (i - first) < visible; i++) {
+        char disp[80];
+        if (l->e[i].is_dir) {
+            if (!strcmp(l->e[i].name, "..")) snprintf(disp, sizeof(disp), "[..] 上级目录");
+            else snprintf(disp, sizeof(disp), "[%s]", l->e[i].name);
+        } else {
+            snprintf(disp, sizeof(disp), "%s", l->e[i].name);
+        }
+        if (i == sel) { ui_rect(ui, 0, y, SCREEN_W, ui->line_h, 60, 90, 150); ui_text(ui, ui->margin, y, disp); }
+        else ui_text(ui, ui->margin, y, disp);
+        y += ui->line_h;
+    }
+    ui_flip(ui);
 }
 
 /* ---------- 进度存取 ---------- */
@@ -124,27 +179,7 @@ static void open_chapter(reader_ui_t *ui, reading_t *r, int idx) {
     if (r->page < 0) r->page = 0;
 }
 
-/* ---------- 绘制：文件浏览 ---------- */
-static void draw_browser(reader_ui_t *ui, filelist_t *l, int sel) {
-    ui_clear(ui);
-    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 40, 60, 110);
-    ui_text(ui, ui->margin, 1, "EPUB Files (Up/Down, A=Open)");
-    int y = ui->title_h + 2;
-    int visible = (SCREEN_H - ui->title_h - ui->prog_h) / ui->line_h;
-    int first = sel - visible / 2; if (first < 0) first = 0;
-    for (int i = first; i < l->n && (i - first) < visible; i++) {
-        const char *nm = strrchr(l->paths[i], '/');
-        nm = nm ? nm + 1 : l->paths[i];
-        if (i == sel) {
-            ui_rect(ui, 0, y, SCREEN_W, ui->line_h, 60, 90, 150);
-            ui_text(ui, ui->margin, y, nm);
-        } else {
-            ui_text(ui, ui->margin, y, nm);
-        }
-        y += ui->line_h;
-    }
-    ui_flip(ui);
-}
+/* draw_nav() 已取代旧的 draw_browser() */
 
 /* ---------- 绘制：目录 ---------- */
 static void draw_toc(reader_ui_t *ui, reading_t *r, int sel) {
@@ -234,13 +269,12 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book) {
 
 /* ---------- 候选根目录 ---------- */
 static const char *candidate_roots[] = {
-    "/mnt/sd", "/media/sdcard", "/media", "/run/media", ".", NULL
+    "/media/roms", "/media/sdcard", "/mnt/sd", "/media", "/run/media", ".", NULL
 };
 
 int main(int argc, char **argv) {
     setup_runtime_env();
     const char *font = NULL;
-    const char *scan_root = NULL;
     const char *direct_file = NULL;
 
     for (int i = 1; i < argc; i++) {
@@ -248,17 +282,7 @@ int main(int argc, char **argv) {
         else if (argv[i][0] == '-' && argv[i][1] == '-') continue;
         else {
             struct stat st;
-            if (stat(argv[i], &st) == 0) {
-                if (S_ISDIR(st.st_mode)) scan_root = argv[i];
-                else if (ends_with(argv[i], ".epub")) direct_file = argv[i];
-            }
-        }
-    }
-    if (!scan_root && !direct_file) {
-        if (getenv("EPUB_ROOT")) scan_root = getenv("EPUB_ROOT");
-        else for (int i = 0; candidate_roots[i]; i++) {
-            struct stat st;
-            if (stat(candidate_roots[i], &st) == 0) { scan_root = candidate_roots[i]; break; }
+            if (stat(argv[i], &st) == 0 && ends_with(argv[i], ".epub")) direct_file = argv[i];
         }
     }
 
@@ -279,69 +303,89 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    filelist_t list = {0};
-    if (scan_root) scan_dir(scan_root, &list, 0);
-    if (list.n == 0) {
-        /* 没找到书时显示提示并等待用户按返回键退出，不再自动闪退 */
-        int empty_quit = 0;
-        while (!empty_quit) {
-            ui_clear(ui);
-            ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 40, 60, 110);
-            ui_text(ui, ui->margin, 1, "EPUB Reader");
-            ui_text(ui, 6, 40, "未找到 .epub 文件");
-            ui_text(ui, 6, 60, "请把电子书放到 SD 卡");
-            ui_text(ui, 6, 80, "按 B/ESC 返回菜单");
-            ui_flip(ui);
+    /* ---------- 可导航文件浏览器：可进入 SD 卡任意目录 ---------- */
+    char *cwd = NULL;
+    for (int i = 0; candidate_roots[i]; i++) {
+        struct stat st;
+        if (stat(candidate_roots[i], &st) == 0 && S_ISDIR(st.st_mode)) { cwd = strdup(candidate_roots[i]); break; }
+    }
+    if (!cwd) cwd = strdup("/");
+
+    int quit = 0;
+    while (!quit) {
+        nav_list_t list = {0};
+        build_list(cwd, &list);
+        if (list.n == 0) {
+            /* 当前目录为空：提示，等待返回上级 / 退出 */
+            int empty_wait = 1;
+            while (empty_wait) {
+                ui_clear(ui);
+                ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 40, 60, 110);
+                ui_text(ui, ui->margin, 1, "该目录为空");
+                ui_text(ui, 6, 40, cwd);
+                ui_text(ui, 6, 60, "按 B/ESC 返回上级");
+                ui_flip(ui);
+                SDL_Event ev;
+                if (!wait_event_timeout(&ev, 300)) continue;
+                enum Action act = A_NONE;
+                if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
+                else if (ev.type == SDL_JOYBUTTONDOWN) { if (ev.jbutton.button == 1) act = A_BACK; }
+                if (act == A_BACK) {
+                    char *p = parent_dir(cwd);
+                    if (!strcmp(p, cwd)) { quit = 1; free(p); }
+                    else { free(cwd); cwd = p; }
+                    empty_wait = 0;
+                }
+            }
+            nav_free(&list);
+            continue;
+        }
+        int sel = 0;
+        while (1) {
+            draw_nav(ui, cwd, &list, sel);
             SDL_Event ev;
             if (!wait_event_timeout(&ev, 300)) continue;
             enum Action act = A_NONE;
             if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
             else if (ev.type == SDL_JOYBUTTONDOWN) {
-                if (ev.jbutton.button == 1) act = A_BACK;
+                if (ev.jbutton.button == 0) act = A_SELECT;
+                else if (ev.jbutton.button == 1) act = A_BACK;
+            } else if (ev.type == SDL_JOYHATMOTION) {
+                if (ev.jhat.value & SDL_HAT_UP) act = A_UP;
+                else if (ev.jhat.value & SDL_HAT_DOWN) act = A_DOWN;
             }
-            if (act == A_BACK) empty_quit = 1;
-        }
-        for (int i = 0; i < list.n; i++) free(list.paths[i]);
-        free(list.paths);
-        ui_quit(ui);
-        return 0;
-    }
-
-    int sel = 0, quit = 0;
-    while (!quit) {
-        draw_browser(ui, &list, sel);
-        SDL_Event ev;
-        if (!wait_event_timeout(&ev, 300)) continue;
-        enum Action act = A_NONE;
-        if (ev.type == SDL_KEYDOWN) act = key_to_action(ev.key.keysym.sym);
-        else if (ev.type == SDL_JOYBUTTONDOWN) {
-            if (ev.jbutton.button == 0) act = A_SELECT;
-            else if (ev.jbutton.button == 1) act = A_BACK;
-        } else if (ev.type == SDL_JOYHATMOTION) {
-            if (ev.jhat.value & SDL_HAT_UP) act = A_UP;
-            else if (ev.jhat.value & SDL_HAT_DOWN) act = A_DOWN;
-        }
-        if (act == A_NONE) continue;
-        switch (act) {
-            case A_UP:   if (sel > 0) sel--; break;
-            case A_DOWN: if (sel < list.n - 1) sel++; break;
-            case A_SELECT: {
-                const char *book = list.paths[sel];
-                zip_t *z = zip_open(book);
-                if (z) {
-                    epub_t *ep = epub_open(z);
-                    if (ep) { read_book(ui, ep, book); epub_close(ep); }
-                    else { /* 解析失败 */ }
-                    zip_close(z);
-                }
+            if (act == A_NONE) continue;
+            if (act == A_UP) { if (sel > 0) sel--; }
+            else if (act == A_DOWN) { if (sel < list.n - 1) sel++; }
+            else if (act == A_BACK) {
+                char *p = parent_dir(cwd);
+                if (!strcmp(p, cwd)) { quit = 1; free(p); }
+                else { free(cwd); cwd = p; }
                 break;
             }
-            case A_BACK: quit = 1; break;
-            default: break;
+            else if (act == A_SELECT) {
+                nav_ent_t *e = &list.e[sel];
+                if (e->is_dir) {
+                    if (!strcmp(e->name, "..")) {
+                        char *p = parent_dir(cwd); free(cwd); cwd = p;
+                    } else {
+                        char *nw = malloc(strlen(cwd) + strlen(e->name) + 2);
+                        sprintf(nw, "%s/%s", cwd, e->name);
+                        free(cwd); cwd = nw;
+                    }
+                    break;
+                } else {
+                    char *path = malloc(strlen(cwd) + strlen(e->name) + 2);
+                    sprintf(path, "%s/%s", cwd, e->name);
+                    open_epub(ui, path);
+                    free(path);
+                }
+            }
         }
+        nav_free(&list);
+        if (quit) break;
     }
-    for (int i = 0; i < list.n; i++) free(list.paths[i]);
-    free(list.paths);
+    free(cwd);
     ui_quit(ui);
     return 0;
 }
