@@ -19,11 +19,21 @@ jobs:
       - name: Install OpenDingux gcw0 toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y squashfs-tools xz-utils curl
+          sudo apt-get install -y squashfs-tools xz-utils curl wget
           # 注意：发布标签是 od-2022.09.22（点），但工具链包名用的是 2022-09-22（连字符）
           TC_URL="https://github.com/OpenDingux/buildroot/releases/download/od-2022.09.22/opendingux-gcw0-toolchain.2022-09-22.tar.xz"
           echo "==> Downloading toolchain: $TC_URL"
-          curl -fL --retry 5 --retry-delay 5 -C - -o /tmp/tc.tar.xz "$TC_URL"
+          # 去掉 -C -(续传在首下载时易报错); 加重试与超时, 应对 GitHub CDN 偶发不稳定
+          ok=0
+          for i in 1 2 3 4 5 6; do
+            echo "  attempt $i ..."
+            if curl -fSL --retry 15 --retry-all-errors --retry-delay 8 --connect-timeout 30 --max-time 600 -o /tmp/tc.tar.xz "$TC_URL"; then
+              ok=1; break
+            fi
+            echo "  attempt $i failed, retrying in 5s"
+            sleep 5
+          done
+          [ "$ok" = "1" ] || { echo "!! curl failed, trying wget fallback"; wget -c -T 60 -t 10 -O /tmp/tc.tar.xz "$TC_URL"; }
           echo "==> Downloaded file:"; ls -lh /tmp/tc.tar.xz
           # 体积校验：工具链约 150MB，小于 10MB 视为下载失败
           SIZE=$(stat -c%s /tmp/tc.tar.xz 2>/dev/null || echo 0)
