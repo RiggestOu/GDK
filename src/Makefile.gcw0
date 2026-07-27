@@ -8,10 +8,14 @@ CC        = $(CROSS)gcc
 SYSROOT   = $(TOOLCHAIN)/mipsel-gcw0-linux-uclibc/sysroot
 
 # SDL1.2 / SDL_ttf / SDL_image / zlib 头文件都在 sysroot/usr/include 下
-# ★ 关键修复(SIGILL): GKD mini 的 Ingenic JZ47xx FPU 仅支持 -mfp32,
-#   gcw0 工具链默认 -mfpxx(=mips32r2 下的 -mfp64) 会生成非法浮点指令。
-#   必须显式 -mfp32 -mno-fpxx,否则运行时 Illegal instruction (exit 132)。
-CFLAGS  = -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -mno-fpxx -I$(SYSROOT)/usr/include -I$(SYSROOT)/usr/include/SDL
+# ★ 关键修复(SIGILL): GKD mini 的 Ingenic JZ47xx FPU 仅支持 -mfp32(32 位 FPU 寄存器/FR=0),
+#   gcw0 工具链默认 -mfpxx 在 mips32r2 下等价于 -mfp64(FR=1), 会生成 64 位浮点指令 →
+#   Illegal instruction (exit 132)。必须显式 -mfp32。
+#   ★ 注意: 不要加 -mno-fpxx! 工具链自带系统库(libSDL 等)是 FPXX ABI 编译的,
+#   非 FPXX 对象与 FPXX 库链接会被 GNU ld 拒绝(uses different floating point ABIs)。
+#   仅用 -mfp32(现代 gcc 下默认即 FPXX 标记, 但仍只用 32 位寄存器), 既能在 JZ47xx 跑,
+#   又能与工具链系统库正常链接。
+CFLAGS  = -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I$(SYSROOT)/usr/include -I$(SYSROOT)/usr/include/SDL
 LDFLAGS = -L$(SYSROOT)/usr/lib
 LIBS    = -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
 

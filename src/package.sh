@@ -2,16 +2,17 @@
 # ============================================================
 # 编译 EPUB 阅读器并打包成 iuxui 可直接识别的 app。
 #
-# ★ iuxui 注册机制（已读 GMenuNX 源码坐实，非猜测）★
-#   iuxui 是 GMenuNX/GMenu2X 的换皮启动器。它【不扫描 app 文件夹】，
-#   只读取  $HOME/.gmenunx/sections/<分类>/<link>.lnk  来列出应用。
-#   - $HOME 在设备上是内部存储根（G: 盘在 U 盘模式下的根），如 /usr/local/home。
+# ★ iuxui 注册机制（已读 Esoteric 源码 + 二进制 strings 实证，非猜测）★
+#   iuxui = Esoteric（GMenu2X 的 fork；本机把 GMenuNX 目录全套改名）。
+#   它【不扫描 app 文件夹】，只读取  $HOME/.esoteric/sections/<分类>/<link>
+#   来列出应用（上游 GMenuNX 叫 .gmenunx，本机已改名为 .esoteric）。
+#   - $HOME 在设备上是 /usr/local/home（= /media/home = /media/data/local/home）。
 #   - 每个 sections/ 下的子目录 = 一个分类(tab)；启动器强制内置
 #     applications / settings 两个分类 → 「apps」分类必定存在。
-#   - 每条 .lnk 必须让 exec 指向【存在的绝对路径文件】，否则被静默丢弃。
+#   - 每条 link 必须让 exec 指向【存在的绝对路径文件】，否则被静默丢弃。
 #   - 图标会自动回退到  dir_name(exec)/<exec基名>.png，故同名 png 即可，
 #     不写 icon= 也行。
-#   - af-84/sdljy/OpenBOR 能显示，全因固件预注册了对应的 .lnk。
+#   - af-84/sdljy/OpenBOR 能显示，全因固件预注册了对应的 link。
 #
 #   本脚本产物同时包含：
 #     pkg/                      资源文件夹（部署到 $HOME/apps/epubreader/）
@@ -19,17 +20,17 @@
 #       epubreader.dge          启动器 shell 脚本（exec 指向它）
 #       epubreader.png          图标（与 .dge 同目录，自动命中）
 #       font.ttf                CJK 字体
-#       lib/                    递归打包的 8 个依赖库
-#     pkg/sections/applications/epubreader.lnk   ← 真正的注册文件！
-#                                                       （部署到 $HOME/.gmenunx/sections/applications/）
+#       lib/                    递归打包的传递依赖库
+#     pkg/sections/applications/epubreader   ← 真正的注册文件（无扩展名）！
+#                                                       （部署到 $HOME/.esoteric/sections/applications/）
 #
 # 部署（GKD Mini / IUX 实测路径）：
 #   设备 U 盘模式挂载点为 G:，设备上对应绝对前缀 = /media/roms。
 #   1) 资源：把整个 pkg/ 放到  G:/apps/epubreader/
 #      （设备内即 /media/roms/apps/epubreader/）。本文件夹含
 #      epubreader.dge(启动器) + epubreader-sdl-1.2(二进制) + epubreader.png
-#      + font.ttf + lib/(8个依赖库)，以及可选的 epubreader(无扩展名元数据)。
-#   2) 注册：IUX 不扫 .gmenunx（U 盘上也没有），真正注册靠设备端
+#      + font.ttf + lib/(传递依赖库)，以及可选的 epubreader(无扩展名元数据)。
+#   2) 注册：Esoteric 不扫 .esoteric（U 盘上也没有），真正注册靠设备端
 #      「应用程序扫描」——在主菜单选中任意一个已显示的应用，按 SELECT
 #      进入编辑菜单，选「应用程序扫描」，它会扫描 G:/apps/ 下的新文件夹
 #      （识别 .dge 启动器或同名元数据文件）并加入菜单。扫描/重启后，
@@ -37,7 +38,7 @@
 #   3) 备选（文件管理器合并法）：把本脚本同时产出的 pkg/sections/ 按
 #      Iceway 风格合并进系统目录（需设备端文件管理器操作），可绕过扫描。
 #
-# 注：IUX_HOME 仅用于生成 pkg/sections/applications/epubreader.lnk（备选方案）。
+# 注：IUX_HOME 仅用于生成 pkg/sections/applications/epubreader（备选方案）。
 #   本机前缀已实证为 /media/roms（见 af-84 元数据 exec），故默认即此值；
 #   若换设备前缀不同，可用 `IUX_HOME=/其它前缀 ./package.sh` 覆盖。
 # ============================================================
@@ -141,22 +142,24 @@ chmod +x pkg/epubreader.dge
 echo "==> 已生成启动器 pkg/epubreader.dge"
 
 # ============================================================
-# ★ 关键：GMenuNX 的注册文件 .lnk ★
+# ★ 关键：Esoteric 的注册文件（无扩展名）★
 #   放在 sections/<分类>/ 下，启动器只读这里。applications 分类由启动器
 #   强制内置（菜单显示名 "apps"），无需新建分类、无需补分类图标。
+#   文件名任意，但【不能有扩展名】(readLinks 只跳过 -opkg 后缀；有其它
+#   扩展名如 .lnk 的文件不会被读取)。故这里用无扩展名的 `epubreader`。
 #   exec 必须是【存在的绝对路径】——指向我们的 .dge 启动器。
 #   icon 省略：启动器会自动回退到 dir_name(exec)/<exec基名>.png
 #              （即 epubreader.png，已与 .dge 同目录）。
 # ============================================================
 mkdir -p "pkg/sections/applications"
-cat > "pkg/sections/applications/epubreader.lnk" <<EOF
+cat > "pkg/sections/applications/epubreader" <<EOF
 title=电子书
 description=EPUB 电子书阅读器 (SDL1.2, MIPS)
 icon=$IUX_HOME/apps/epubreader/epubreader.png
 exec=$IUX_HOME/apps/epubreader/epubreader.dge
 selectorbrowser=false
 EOF
-echo "==> 已生成注册文件 pkg/sections/applications/epubreader.lnk (exec 前缀=$IUX_HOME)"
+echo "==> 已生成注册文件 pkg/sections/applications/epubreader (无扩展名, exec 前缀=$IUX_HOME)"
 
 if ! command -v mksquashfs >/dev/null 2>&1; then
   echo "!! 缺少 mksquashfs，跳过 OPK（不影响 iuxui 部署）"
@@ -167,10 +170,10 @@ else
 fi
 
 echo
-echo "==> 产物: pkg/ (资源) + pkg/sections/applications/epubreader.lnk (注册)"
+echo "==> 产物: pkg/ (资源) + pkg/sections/applications/epubreader (无扩展名注册文件)"
 echo "    部署到 GDK mini："
 echo "    1) 资源: pkg/ 改名为 epubreader → 复制到 G:/apps/epubreader/"
 echo "           (即设备 \$HOME/apps/epubreader/)"
-echo "    2) 注册: 把 pkg/sections/ 合并进 G:/.gmenunx/sections/"
-echo "           (即设备 \$HOME/.gmenunx/sections/)，applications 下出现 epubreader.lnk"
+echo "    2) 注册: 把 pkg/sections/ 合并进 G:/.esoteric/sections/"
+echo "           (即设备 \$HOME/.esoteric/sections/)，applications 下出现 epubreader"
 echo "    3) 重启 → 菜单「apps」标签即见 EPUB Reader"
