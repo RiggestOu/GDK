@@ -120,8 +120,8 @@ static enum Action event_to_action(const SDL_Event *ev) {
                 g_key_down &= ~bit;
                 /* 肩键抬起：本轮没产生过组合 → 单按 = 翻页 */
                 if (!g_key_down && !g_shoulder_combo) {
-                    if (bit == KMOD_L1 || bit == KMOD_L2) return A_UP;
-                    if (bit == KMOD_R1 || bit == KMOD_R2) return A_DOWN;
+                    if (bit == KMOD_L1 || bit == KMOD_R1) return A_DOWN;  /* L1/R1 = 下一页 */
+                    if (bit == KMOD_L2 || bit == KMOD_R2) return A_UP;    /* L2/R2 = 上一页 */
                 }
                 return A_NONE;
             }
@@ -146,8 +146,8 @@ static enum Action event_to_action(const SDL_Event *ev) {
             /* 肩键抬起：本轮无组合 → 单按翻页 */
             int sh = (1 << BTN_L1) | (1 << BTN_L2) | (1 << BTN_R1) | (1 << BTN_R2);
             if ((b==BTN_L1||b==BTN_L2||b==BTN_R1||b==BTN_R2) && (g_btn_down & sh)==0 && !g_shoulder_combo) {
-                if (b==BTN_L1||b==BTN_L2) return A_UP;
-                else return A_DOWN;
+                if (b==BTN_L1||b==BTN_R1) return A_DOWN;  /* L1/R1 = 下一页 */
+                else return A_UP;                          /* L2/R2 = 上一页 */
             }
             return A_NONE;
         }
