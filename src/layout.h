@@ -30,6 +30,13 @@ typedef struct {
     unsigned char bold;
 } rline_t;
 
+/* 图片原图（供缩放查看器放大细节）。由 layout 持有并在 layout_free 释放 full。 */
+typedef struct {
+    int           line;   /* 在 layout_t.lines 中的行索引 */
+    int           page;   /* 该图片落在第几页（分页后填） */
+    SDL_Surface  *full;   /* 原始分辨率 surface（未缩放） */
+} pic_ent_t;
+
 typedef struct {
     rline_t *lines;
     int      n_lines;
@@ -37,6 +44,8 @@ typedef struct {
     int     *page_start;  /* 每页起始行索引 */
     int      n_pages;
     int      page_h;      /* 单页可用高度 */
+    pic_ent_t *pics;      /* 本章所有图片（原图）列表 */
+    int       n_pics;
 } layout_t;
 
 /* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。
@@ -44,8 +53,10 @@ typedef struct {
 layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href);
 void layout_free(layout_t *L);
 
-/* 绘制排好版的一页（替代旧 ui_draw_reader）。正文用 ui->fg 色，标题/引用用固定色 */
+/* 绘制排好版的一页（替代旧 ui_draw_reader）。正文用 ui->fg 色，标题/引用用固定色。
+   focus_line>=0 且 focus_label 非空时，在对应图片行画金色高亮框 + 标签。 */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
-                           const char *title, int pct, int bookmark_on);
+                           const char *title, int pct, int bookmark_on,
+                           int focus_line, const char *focus_label);
 
 #endif /* LAYOUT_H */

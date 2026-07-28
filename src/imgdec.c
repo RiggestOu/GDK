@@ -55,3 +55,22 @@ SDL_Surface *img_decode_scaled(const unsigned char *buf, size_t sz, int maxw, in
     /* 其它格式暂不支持（PNG/JPG 的系统解码库带 MXU 雷） */
     return NULL;
 }
+
+SDL_Surface *img_decode(const unsigned char *buf, size_t sz) {
+    if (!buf || sz < 16) return NULL;
+    if (memcmp(buf, "RIFF", 4) == 0 && memcmp(buf + 8, "WEBP", 4) == 0) {
+        int w = 0, h = 0;
+        if (!WebPGetInfo(buf, sz, &w, &h) || w <= 0 || h <= 0) {
+            fprintf(stderr, "[img] WebPGetInfo 失败\n");
+            return NULL;
+        }
+        unsigned char *rgba = WebPDecodeRGBA(buf, sz, &w, &h);
+        if (!rgba) { fprintf(stderr, "[img] WebPDecodeRGBA 失败 (%dx%d)\n", w, h); return NULL; }
+        fprintf(stderr, "[img] WebP 原图解码 %dx%d\n", w, h);
+        /* dw=w, dh=h → rgba_to_surface_scaled 内部 sy=y/sx=x 即原样拷贝，不缩放 */
+        SDL_Surface *s = rgba_to_surface_scaled(rgba, w, h, w, h);
+        WebPFree(rgba);
+        return s;
+    }
+    return NULL;
+}

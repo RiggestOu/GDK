@@ -20,7 +20,7 @@ static const int   brights[5] = {30, 50, 70, 90, 100};
 static const char *bright_labels[5] = {"30%", "50%", "70%", "90%", "100%"};
 
 /* ================= 动作 ================= */
-enum Action { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_SELECT, A_BACK, A_MENU, A_BOOKMARK, A_QUIT_FORCE };
+enum Action { A_NONE, A_UP, A_DOWN, A_LEFT, A_RIGHT, A_SELECT, A_BACK, A_MENU, A_BOOKMARK, A_PIC, A_QUIT_FORCE };
 
 static int ends_with(const char *s, const char *suf) {
     size_t ls = strlen(s), lf = strlen(suf);
@@ -43,8 +43,8 @@ static enum Action key_to_action(int key) {
         case SDLK_ESCAPE:                         return A_BACK;     /* SELECT */
         case SDLK_LSHIFT: case SDLK_m:            return A_MENU;     /* X 键 */
         case SDLK_SPACE:  case SDLK_k:            return A_BOOKMARK; /* Y 键 */
-        case SDLK_TAB:      case SDLK_PAGEUP:     return A_UP;       /* L1=上一页 */
-        case SDLK_BACKSPACE:case SDLK_PAGEDOWN:   return A_DOWN;     /* R1=下一页 */
+        case SDLK_TAB:      case SDLK_PAGEUP:     return A_NONE;     /* L1/L2 单按无操作（专用于图片功能，避免与 L1+方向 组合冲突） */
+        case SDLK_BACKSPACE:case SDLK_PAGEDOWN:   return A_NONE;     /* R1/R2 单按无操作 */
         default: return A_NONE;
     }
 }
@@ -91,6 +91,8 @@ static int g_btn_down = 0;
 #define KMOD_L1    (1 << 0)
 #define KMOD_L2    (1 << 1)
 #define KMOD_START (1 << 2)
+#define KMOD_R1    (1 << 3)
+#define KMOD_R2    (1 << 4)
 static int g_key_down = 0;
 
 /* App 级退出标志：阅读中按 L1/L2+START 也要直接退出整个 App（不是退回浏览器） */
@@ -105,13 +107,18 @@ static enum Action event_to_action(const SDL_Event *ev) {
         if (sym == SDLK_TAB)         bit = KMOD_L1;    /* L1 */
         else if (sym == SDLK_PAGEUP) bit = KMOD_L2;    /* L2（有的固件 L2=PageUp） */
         else if (sym == SDLK_RETURN) bit = KMOD_START; /* START */
+        else if (sym == SDLK_BACKSPACE) bit = KMOD_R1; /* R1 */
+        else if (sym == SDLK_PAGEDOWN)  bit = KMOD_R2; /* R2 */
         if (bit) { if (down) g_key_down |= bit; else g_key_down &= ~bit; }
         if (!down) return A_NONE;
-        /* 组合键：L1+START 与 L2+START 功能一致 = 强制退出（自动书签） */
+        /* 组合键：L1+START / L2+START = 强制退出（自动书签） */
         if (sym == SDLK_RETURN && (g_key_down & (KMOD_L1 | KMOD_L2)))
             return A_QUIT_FORCE;
         if ((sym == SDLK_TAB || sym == SDLK_PAGEUP) && (g_key_down & KMOD_START))
             return A_QUIT_FORCE;
+        /* 图片层：L1+L2 / R1+R2 = 进/出图片缩放界面 */
+        if ((g_key_down & (KMOD_L1 | KMOD_L2)) == (KMOD_L1 | KMOD_L2)) return A_PIC;
+        if ((g_key_down & (KMOD_R1 | KMOD_R2)) == (KMOD_R1 | KMOD_R2)) return A_PIC;
         return key_to_action(sym);
     }
     if (ev->type == SDL_JOYBUTTONDOWN || ev->type == SDL_JOYBUTTONUP) {
@@ -126,14 +133,16 @@ static enum Action event_to_action(const SDL_Event *ev) {
         }
         if ((b == BTN_L1 || b == BTN_L2) && (g_btn_down & (1 << BTN_START)))
             return A_QUIT_FORCE;
+        /* 图片层：L1+L2 / R1+R2 = 进/出图片缩放界面 */
+        if ((g_btn_down & ((1 << BTN_L1) | (1 << BTN_L2))) == ((1 << BTN_L1) | (1 << BTN_L2))) return A_PIC;
+        if ((g_btn_down & ((1 << BTN_R1) | (1 << BTN_R2))) == ((1 << BTN_R1) | (1 << BTN_R2))) return A_PIC;
         /* 单键映射 */
         switch (b) {
             case BTN_A: return A_SELECT;
             case BTN_B: return A_BACK;
             case BTN_X: return A_BOOKMARK;
             case BTN_Y: return A_MENU;
-            case BTN_L1: case BTN_R1: return A_DOWN;   /* 下一页 */
-            case BTN_L2: case BTN_R2: return A_UP;     /* 上一页 */
+            case BTN_L1: case BTN_L2: case BTN_R1: case BTN_R2: return A_NONE; /* 单肩无操作，专用于图片功能 */
             default: return A_NONE;
         }
     }
@@ -400,7 +409,69 @@ static void toc_collapse_subtree(epub_t *ep, unsigned char *expanded, int i) {
     for (int j = i + 1; j < ep->n_toc && ep->toc[j].level > lv; j++) expanded[j] = 0;
 }
 
-typedef enum { ST_READ, ST_TOC, ST_MENU, ST_COLOR, ST_FONTSZ, ST_BRIGHT, ST_MODE, ST_BMLIST } rstate;
+typedef enum { ST_READ, ST_TOC, ST_MENU, ST_COLOR, ST_FONTSZ, ST_BRIGHT, ST_MODE, ST_BMLIST, ST_PICVIEW } rstate;
+
+/* ================= 图片缩放/平移查看器 ================= */
+#define PICV_X 0
+#define PICV_Y TITLE_H
+#define PICV_W SCREEN_W
+#define PICV_H (SCREEN_H - STATUS_H - TITLE_H)
+
+/* 进入查看器：按屏宽适配起始缩放，居中显示 */
+static void enter_picview(reader_ui_t *ui, SDL_Surface **disp, int *zoom, int *ox, int *oy, SDL_Surface *full) {
+    int iw = full->w, ih = full->h;
+    int z = PICV_W * 100 / iw;
+    if (z < 20) z = 20; if (z > 400) z = 400;
+    while (iw * z / 100 > 2048 && z > 20) z--;
+    int DW = iw * z / 100, DH = ih * z / 100;
+    if (*disp) SDL_FreeSurface(*disp);
+    *disp = SDL_CreateRGBSurface(SDL_SWSURFACE, DW, DH,
+                                 ui->screen->format->BitsPerPixel,
+                                 ui->screen->format->Rmask, ui->screen->format->Gmask,
+                                 ui->screen->format->Bmask, ui->screen->format->Amask);
+    if (*disp) SDL_SoftStretch(full, NULL, *disp, NULL);
+    *zoom = z;
+    *ox = (PICV_W - DW) / 2; if (*ox < 0) *ox = 0;
+    *oy = (PICV_H - DH) / 2; if (*oy < 0) *oy = 0;
+}
+/* 按新缩放系数重建显示 surface（仅 zoom 变化时调用，平移不重建） */
+static void zoom_picview(reader_ui_t *ui, SDL_Surface **disp, int *zoom, int *ox, int *oy, SDL_Surface *full, int newz) {
+    (void)ox; (void)oy;
+    int iw = full->w, ih = full->h;
+    int DW = iw * newz / 100, DH = ih * newz / 100;
+    if (DW < 1) DW = 1; if (DH < 1) DH = 1;
+    if (*disp) SDL_FreeSurface(*disp);
+    *disp = SDL_CreateRGBSurface(SDL_SWSURFACE, DW, DH,
+                                 ui->screen->format->BitsPerPixel,
+                                 ui->screen->format->Rmask, ui->screen->format->Gmask,
+                                 ui->screen->format->Bmask, ui->screen->format->Amask);
+    if (*disp) SDL_SoftStretch(full, NULL, *disp, NULL);
+    *zoom = newz;
+}
+/* 限制偏移：图比视口大则偏移范围 [VW-DW, 0]，否则图居中范围 [0, VW-DW] */
+static void clamp_picview(int *ox, int *oy, SDL_Surface *disp) {
+    if (!disp) return;
+    int DW = disp->w, DH = disp->h;
+    if (DW <= PICV_W) { if (*ox < 0) *ox = 0; if (*ox > PICV_W - DW) *ox = PICV_W - DW; }
+    else { if (*ox > 0) *ox = 0; if (*ox < PICV_W - DW) *ox = PICV_W - DW; }
+    if (DH <= PICV_H) { if (*oy < 0) *oy = 0; if (*oy > PICV_H - DH) *oy = PICV_H - DH; }
+    else { if (*oy > 0) *oy = 0; if (*oy < PICV_H - DH) *oy = PICV_H - DH; }
+}
+static void ui_draw_picview(reader_ui_t *ui, SDL_Surface *disp, int ox, int oy, int zoom, int idx, int total) {
+    ui_clear(ui);
+    ui_rect(ui, 0, 0, SCREEN_W, SCREEN_H, 18, 18, 22);
+    if (disp) {
+        SDL_Rect dst = { (Sint16)(PICV_X + ox), (Sint16)(PICV_Y + oy), disp->w, disp->h };
+        SDL_BlitSurface(disp, NULL, ui->screen, &dst);
+    } else {
+        ui_text_rgb(ui, 20, SCREEN_H / 2, "图片无法解码", 220, 80, 80);
+    }
+    ui_rect(ui, 0, 0, SCREEN_W, TITLE_H, 255, 210, 60);
+    char t[48]; snprintf(t, sizeof(t), "图片 %d/%d  缩放 %d%%", idx, total, zoom);
+    ui_text_rgb(ui, ui->margin, 3, t, 0, 0, 0);
+    ui_draw_status(ui, "L1+L2 退出", "L1+方向 缩放");
+    ui_flip(ui);
+}
 
 static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg) {
     reading_t r; memset(&r,0,sizeof(r)); r.ep=ep;
@@ -426,12 +497,28 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
     rstate st = ST_READ;
     int menu_sel=0, sub_sel=0, bm_sel=0;
     int quit=0;
+
+    /* 图片缩放/平移查看器状态 */
+    int pic_focus = 0;            /* 当前页焦点图索引（本页图片列表内） */
+    SDL_Surface *pic_full = NULL;  /* 当前缩放查看的原图 */
+    SDL_Surface *pic_disp = NULL;  /* 按 zoom 缩放后的显示 surface */
+    int pic_zoom = 100;
+    int pic_ox = 0, pic_oy = 0;    /* 图在视口内的偏移（屏幕像素，正值=图向右/下移） */
     while (!quit) {
         int total_pages = r.lay ? r.lay->n_pages : 1;
         int at_bm = bm_find(bms, n_bm, r.spine_idx, r.page) >= 0;
+        /* 本页图片列表（仅当前页） */
+        int np = 0, page_pics[32];
+        if (r.lay) for (int k = 0; k < r.lay->n_pics && np < 32; k++)
+            if (r.lay->pics[k].page == r.page) page_pics[np++] = k;
+        if (pic_focus >= np) pic_focus = 0;
         if (st == ST_READ) {
             int pct = total_pages>0 ? (r.page+1)*100/total_pages : 0;
-            ui_draw_reader_layout(ui, r.lay, r.page, r.title, pct, at_bm);
+            int focus_line = (np>0) ? r.lay->pics[page_pics[pic_focus]].line : -1;
+            char flbl[32]; if (np>0) snprintf(flbl, sizeof(flbl), "图 %d/%d", pic_focus+1, np); else flbl[0]=0;
+            ui_draw_reader_layout(ui, r.lay, r.page, r.title, pct, at_bm, focus_line, np>0?flbl:NULL);
+        } else if (st == ST_PICVIEW) {
+            ui_draw_picview(ui, pic_disp, pic_ox, pic_oy, pic_zoom, pic_focus+1, np);
         } else if (st == ST_TOC) {
             int nv = toc_build_visible(ep, expanded, vis, ep->n_toc);
             if (toc_sel >= nv) toc_sel = nv > 0 ? nv - 1 : 0;
@@ -508,6 +595,30 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             continue;
         }
 
+        /* ---- 阅读页：图片焦点选择 / 进缩放 ---- */
+        if (st == ST_READ) {
+            if (act == A_PIC) {
+                if (np > 0) {
+                    pic_full = r.lay->pics[page_pics[pic_focus]].full;
+                    if (pic_full) {
+                        enter_picview(ui, &pic_disp, &pic_zoom, &pic_ox, &pic_oy, pic_full);
+                        st = ST_PICVIEW;
+                    }
+                }
+                continue;
+            }
+            int shoulder = (g_key_down & (KMOD_L1 | KMOD_R1));
+            if (shoulder && np > 0) {
+                int dir = 0;
+                if (act == A_UP || act == A_LEFT || act == A_MENU || act == A_BOOKMARK) dir = -1;
+                else if (act == A_DOWN || act == A_RIGHT || act == A_BACK || act == A_SELECT) dir = +1;
+                if (dir != 0) {
+                    pic_focus = (pic_focus + dir + np) % np;
+                    continue;
+                }
+            }
+        }
+
         if (st == ST_READ) {
             switch (act) {
                 case A_UP:    if (r.page>0){r.page--; save_progress(book,r.spine_idx,r.page);} break;
@@ -530,6 +641,30 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 }
                 default: break;
             }
+        } else if (st == ST_PICVIEW) {
+            if (act == A_PIC) {                 /* 退出缩放，回阅读页 */
+                st = ST_READ;
+                if (pic_disp) { SDL_FreeSurface(pic_disp); pic_disp = NULL; }
+                continue;
+            }
+            int shoulder = (g_key_down & (KMOD_L1 | KMOD_R1));
+            if (shoulder) {
+                int nz = pic_zoom;
+                if (act == A_UP || act == A_BOOKMARK)        nz += 1;   /* L1+↑ / R1+Y 放大1% */
+                else if (act == A_DOWN || act == A_BACK)     nz -= 1;   /* L1+↓ / R1+B 缩小1% */
+                else if (act == A_RIGHT || act == A_SELECT)  nz += 10;  /* L1+→ / R1+A 放大10% */
+                else if (act == A_LEFT || act == A_MENU)     nz -= 10;  /* L1+← / R1+X 缩小10% */
+                if (nz < 20) nz = 20; if (nz > 400) nz = 400;
+                if (nz != pic_zoom) zoom_picview(ui, &pic_disp, &pic_zoom, &pic_ox, &pic_oy, pic_full, nz);
+            } else {
+                int step = 24;
+                if (act == A_UP || act == A_BOOKMARK)       pic_oy -= step;  /* 上移 */
+                else if (act == A_DOWN || act == A_BACK)    pic_oy += step;  /* 下移 */
+                else if (act == A_LEFT || act == A_MENU)    pic_ox -= step;  /* 左移 */
+                else if (act == A_RIGHT || act == A_SELECT) pic_ox += step;  /* 右移 */
+            }
+            clamp_picview(&pic_ox, &pic_oy, pic_disp);
+            continue;
         } else if (st == ST_TOC) {
             int nv = toc_build_visible(ep, expanded, vis, ep->n_toc);
             if (nv == 0) { st = ST_MENU; continue; }
@@ -662,6 +797,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
     }
     free_lay(&r);
     free(r.title);
+    if (pic_disp) SDL_FreeSurface(pic_disp);
     free(expanded);
     free(vis);
 }

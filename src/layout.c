@@ -200,6 +200,9 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
     int y = 0;
     int maxw_full = SCREEN_W - 2 * ui->margin;
 
+    /* 本章图片原图收集（供缩放查看器放大细节），复用 layout.h 的 pic_ent_t */
+    pic_ent_t *picbuf = NULL; int npic = 0, cap_pic = 0;
+
     for (int i = 0; i < nb; i++) {
         block_t *b = &blocks[i];
         if (b->type == BLK_IMG) {
@@ -215,6 +218,19 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
                 }
             }
             if (img) {
+                /* 解码原图（供缩放查看器放大细节；失败存 NULL，缩放时显示占位） */
+                SDL_Surface *full = NULL;
+                if (ep && b->img_href) {
+                    size_t fsz = 0;
+                    unsigned char *fbuf = epub_read_file_rel(ep, doc_href, b->img_href, &fsz);
+                    if (fbuf) { full = img_decode(fbuf, fsz); free(fbuf); }
+                }
+                if (npic >= cap_pic) { cap_pic = cap_pic ? cap_pic * 2 : 8; picbuf = realloc(picbuf, cap_pic * sizeof(pic_ent_t)); }
+                picbuf[npic].line = rl.n;   /* 即将 push 的行索引 */
+                picbuf[npic].page = -1;
+                picbuf[npic].full = full;
+                npic++;
+
                 y += 4;
                 rline_t *r = rl_push(&rl);
                 r->img = img; r->h = (short)(img->h + 4);
@@ -312,6 +328,16 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
     }
     L->page_start = ps;
     L->n_pages = np;
+
+    /* 填每张图片所属页 */
+    for (int k = 0; k < npic; k++) {
+        int ln = picbuf[k].line;
+        int pg = 0;
+        while (pg + 1 < np && L->page_start[pg + 1] <= ln) pg++;
+        picbuf[k].page = pg;
+    }
+    L->pics = picbuf;
+    L->n_pics = npic;
     return L;
 }
 
@@ -323,12 +349,18 @@ void layout_free(layout_t *L) {
     }
     free(L->lines);
     free(L->page_start);
+    if (L->pics) {
+        for (int i = 0; i < L->n_pics; i++)
+            if (L->pics[i].full) SDL_FreeSurface(L->pics[i].full);
+        free(L->pics);
+    }
     free(L);
 }
 
 /* ================= 绘制一页 ================= */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
-                           const char *title, int pct, int bookmark_on) {
+                           const char *title, int pct, int bookmark_on,
+                           int focus_line, const char *focus_label) {
     ui_clear(ui);
     char t[32];
     snprintf(t, sizeof(t), "%.28s", title ? title : "");
@@ -351,6 +383,13 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
             if (r->img) {
                 SDL_Rect dst = { r->x, (Sint16)(dy + 2), 0, 0 };
                 SDL_BlitSurface(r->img, NULL, ui->screen, &dst);
+                if (i == focus_line && focus_label) {
+                    /* 焦点高亮：金色双层边框 + 标签 */
+                    ui_rect(ui, r->x - 2, dy + 1, r->img->w + 4, r->img->h + 4, 255, 210, 60);
+                    ui_rect(ui, r->x,     dy + 3, r->img->w,     r->img->h,     255, 210, 60);
+                    int ly = dy - 12; if (ly < TITLE_H + 1) ly = dy + r->img->h + 4;
+                    ui_text_rgb(ui, r->x, ly, focus_label, 255, 210, 60);
+                }
                 continue;
             }
             if (!r->text) continue;
