@@ -562,7 +562,7 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
 /* ================= 入口 ================= */
 int main(int argc, char **argv) {
     install_crash_handler();
-    fprintf(stderr, "[diag] main() 启动, 崩溃处理器已装\n"); fflush(stderr);
+    fprintf(stderr, "[diag] main() 启动, 崩溃处理器已装, build=" __DATE__ " " __TIME__ "\n"); fflush(stderr);
     setup_runtime_env();
     const char *font=NULL, *direct_file=NULL;
     for (int i=1;i<argc;i++) {
