@@ -2,7 +2,7 @@
 # 在 WSL2 Ubuntu 内运行:  make -f Makefile.gcw0
 
 TARGET    = epubreader
-TOOLCHAIN = /opt/gcw0-toolchain
+TOOLCHAIN ?= /opt/gcw0-toolchain
 CROSS     = $(TOOLCHAIN)/bin/mipsel-gcw0-linux-uclibc-
 CC        = $(CROSS)gcc
 SYSROOT   = $(TOOLCHAIN)/mipsel-gcw0-linux-uclibc/sysroot

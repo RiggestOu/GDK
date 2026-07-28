@@ -92,6 +92,21 @@ char *strip_tags(const char *html) {
     size_t o = 0;
     for (size_t i = 0; i < len; i++) {
         if (html[i] == '<') {
+            /* 注释 <!-- -->：整段跳过 */
+            if (i + 3 < len && html[i+1] == '!' && html[i+2] == '-' && html[i+3] == '-') {
+                const char *end = strstr(html + i, "-->");
+                if (end) { i = (size_t)(end - html) + 2; continue; }
+            }
+            /* 声明 / 处理指令 <!...> 或 <?...> */
+            if (i + 1 < len && (html[i+1] == '!' || html[i+1] == '?')) {
+                while (i < len && html[i] != '>') i++;
+                continue;
+            }
+            /* CDATA <![CDATA[ ... ]]> */
+            if (i + 2 < len && html[i+1] == '[') {
+                const char *end = strstr(html + i, "]]>");
+                if (end) { i = (size_t)(end - html) + 2; continue; }
+            }
             size_t j = i + 1;
             while (j < len && (isalnum((unsigned char)html[j]) || html[j] == '/')) j++;
             size_t tlen = j - (i + 1);
@@ -106,7 +121,8 @@ char *strip_tags(const char *html) {
                 strcasecmp(tname, "h2") == 0 || strcasecmp(tname, "h3") == 0 ||
                 strcasecmp(tname, "h4") == 0 || strcasecmp(tname, "h5") == 0 ||
                 strcasecmp(tname, "h6") == 0 || strcasecmp(tname, "section") == 0 ||
-                strcasecmp(tname, "/p") == 0 || strcasecmp(tname, "/div") == 0) {
+                strcasecmp(tname, "/p") == 0 || strcasecmp(tname, "/div") == 0 ||
+                strcasecmp(tname, "/li") == 0 || strcasecmp(tname, "/section") == 0) {
                 out[o++] = '\n';
             }
         } else {

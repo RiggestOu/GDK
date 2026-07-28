@@ -180,7 +180,35 @@ static void parse_toc(epub_t *e) {
         size_t sz = 0;
         unsigned char *data = zip_read(e->zip, resolved, &sz);
         free(resolved);
-        if (data) { parse_nav(e, (const char *)data); free(data); }
+        if (data) {
+            const char *nav = (const char *)data;
+            /* 优先只解析 epub:type="toc" 的 nav 区块，避免把页码表/地标等其它链接混入目录 */
+            const char *tocmark = stristr(nav, "epub:type=\"toc\"");
+            if (tocmark) {
+                const char *navopen = NULL;
+                for (const char *p = tocmark; p > nav && !navopen; p--) {
+                    if (p[0] == '<' && (p[1]=='n'||p[1]=='N') &&
+                        (p[2]=='a'||p[2]=='A') && (p[3]=='v'||p[3]=='V'))
+                        navopen = p;
+                }
+                if (navopen) {
+                    const char *navend = stristr(navopen, "</nav>");
+                    if (navend) {
+                        size_t blen = (size_t)(navend - navopen);
+                        char *block = strndup_(navopen, blen + 6);
+                        parse_nav(e, block);
+                        free(block);
+                    } else {
+                        parse_nav(e, navopen);
+                    }
+                } else {
+                    parse_nav(e, nav);
+                }
+            } else {
+                parse_nav(e, nav);
+            }
+            free(data);
+        }
     }
     /* 回退 EPUB2 NCX */
     if (e->n_toc == 0) {
@@ -215,7 +243,7 @@ epub_t *epub_open(zip_t *z) {
 
     size_t sz = 0;
     unsigned char *cont = zip_read(z, "META-INF/container.xml", &sz);
-    if (!cont) { epub_close(e); return NULL; }
+    if (!cont) { fprintf(stderr, "[epub] META-INF/container.xml 读取失败\n"); epub_close(e); return NULL; }
     /* <rootfile> 是自闭合标签，属性在标签内，需从标签本身取 full-path */
     const char *rp = stristr((const char *)cont, "<rootfile");
     char *opf = NULL;
@@ -227,7 +255,7 @@ epub_t *epub_open(zip_t *z) {
             free(tag);
         }
     }
-    if (!opf) { free(cont); epub_close(e); return NULL; }
+    if (!opf) { fprintf(stderr, "[epub] rootfile full-path 未找到\n"); free(cont); epub_close(e); return NULL; }
     e->opf_path = strdup(opf);
     free(cont); free(opf);
 
@@ -242,7 +270,7 @@ epub_t *epub_open(zip_t *z) {
     }
 
     unsigned char *opftxt = zip_read(z, e->opf_path, &sz);
-    if (!opftxt) { epub_close(e); return NULL; }
+    if (!opftxt) { fprintf(stderr, "[epub] OPF 读取失败: %s\n", e->opf_path); epub_close(e); return NULL; }
     parse_manifest(e, (const char *)opftxt);
     parse_spine(e, (const char *)opftxt);
     parse_toc(e);

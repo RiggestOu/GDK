@@ -76,7 +76,7 @@ fi
 # (libSDL_ttf -> libfreetype/libpng/libiconv；libSDL_image -> libpng/libjpeg；
 #  libSDL_ttf -> libts.so.0)。之前漏打这些传递依赖会导致运行期
 # "can't load library 'libXXX.so'"。
-TOOLCHAIN=/opt/gcw0-toolchain
+TOOLCHAIN="${TOOLCHAIN:-/opt/gcw0-toolchain}"
 CROSS_BIN="$TOOLCHAIN/bin/mipsel-gcw0-linux-uclibc-"
 OBJDUMP="${CROSS_BIN}objdump"
 SYSROOT="$TOOLCHAIN/mipsel-gcw0-linux-uclibc/sysroot"
