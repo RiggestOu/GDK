@@ -45,6 +45,11 @@ char *epub_read_html(epub_t *e, const char *href);
 #include <stddef.h>
 unsigned char *epub_read_file(epub_t *e, const char *href, size_t *out_sz);
 
+/* 读取资源：href 相对 doc_href（当前章节 XHTML）所在目录解析
+   （EPUB 内图片通常相对于引用它的文档），失败回退到相对 OPF base_dir 解析。
+   返回 malloc 缓冲区与大小，失败 NULL */
+unsigned char *epub_read_file_rel(epub_t *e, const char *doc_href, const char *href, size_t *out_sz);
+
 /* 在 spine 中查找与给定 href（路径部分）匹配的章节索引，找不到返回 -1 */
 int epub_find_spine(epub_t *e, const char *href);
 

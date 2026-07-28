@@ -68,6 +68,60 @@ unsigned char *epub_read_file(epub_t *e, const char *href, size_t *out_sz) {
     return data;
 }
 
+/* 合并目录 base 与相对路径 rel，处理 '.' 与 '..'，返回 malloc 字符串 */
+static char *path_join(const char *base, const char *rel) {
+    char *out = strdup(base ? base : "");
+    size_t ol = strlen(out);
+    while (ol > 0 && out[ol - 1] == '/') out[--ol] = 0;        /* 去尾斜杠 */
+    const char *p = rel;
+    char seg[1024];
+    while (*p) {
+        if (*p == '/') { p++; continue; }
+        size_t sl = 0;
+        while (*p && *p != '/' && sl < sizeof(seg) - 1) seg[sl++] = *p++;
+        seg[sl] = 0;
+        if (seg[0] == 0) continue;
+        if (strcmp(seg, ".") == 0) continue;
+        if (strcmp(seg, "..") == 0) {
+            char *slash = strrchr(out, '/');
+            if (slash) *slash = 0; else out[0] = 0;
+            continue;
+        }
+        ol = strlen(out);
+        char *nw = malloc(ol + 1 + sl + 1);
+        strcpy(nw, out);
+        if (ol > 0 && nw[ol - 1] != '/') strcat(nw, "/");
+        strcat(nw, seg);
+        free(out);
+        out = nw;
+    }
+    return out;
+}
+
+/* 读取资源：href 相对 doc_href 所在目录解析（EPUB 图片通常相对于引用它的 XHTML），
+   失败回退到相对 OPF base_dir 解析。返回 malloc 缓冲区与大小，失败 NULL */
+unsigned char *epub_read_file_rel(epub_t *e, const char *doc_href, const char *href, size_t *out_sz) {
+    if (out_sz) *out_sz = 0;
+    if (!href || !*href) return NULL;
+    char *clean = strdup(href);
+    char *f = strchr(clean, '#');
+    if (f) *f = 0;                                /* 去掉 fragment */
+    char *doc_dir = strdup(doc_href ? doc_href : "");
+    char *slash = strrchr(doc_dir, '/');
+    if (slash) *slash = 0;                        /* 取文档所在目录 */
+    char *resolved = path_join(doc_dir, clean);
+    free(doc_dir); free(clean);
+    fprintf(stderr, "[img] try doc-rel: %s\n", resolved);
+    unsigned char *data = zip_read(e->zip, resolved, out_sz);
+    if (data) { free(resolved); return data; }
+    free(resolved);
+    char *r2 = epub_resolve(e, href);             /* 回退：相对 OPF 目录 */
+    fprintf(stderr, "[img] try opf-rel: %s\n", r2);
+    data = zip_read(e->zip, r2, out_sz);
+    free(r2);
+    return data;
+}
+
 /* 解析 manifest：遍历 <item ...>，跳过 <itemref */
 static void parse_manifest(epub_t *e, const char *opf) {
     const char *p = opf;

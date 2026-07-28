@@ -42,6 +42,7 @@ SDL_Surface *img_decode_scaled(const unsigned char *buf, size_t sz, int maxw, in
         }
         unsigned char *rgba = WebPDecodeRGBA(buf, sz, &w, &h);
         if (!rgba) { fprintf(stderr, "[img] WebPDecodeRGBA 失败 (%dx%d)\n", w, h); return NULL; }
+        fprintf(stderr, "[img] WebP 解码成功 %dx%d\n", w, h);
         int dw = w, dh = h;
         if (dw > maxw) { dh = (int)((long)dh * maxw / dw); dw = maxw; }
         if (maxh > 0 && dh > maxh) { dw = (int)((long)dw * maxh / dh); dh = maxh; }

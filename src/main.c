@@ -360,7 +360,7 @@ static void open_chapter(reader_ui_t *ui, reading_t *r, int idx) {
     r->spine_idx = idx;
     char *html = epub_read_html(r->ep, r->ep->spine[idx]);
     if (!html) html = strdup("<p>(空章节)</p>");
-    r->lay = layout_chapter(ui, r->ep, html);
+    r->lay = layout_chapter(ui, r->ep, html, r->ep->spine[idx]);
     free(html);
     if (r->page >= r->lay->n_pages) r->page = r->lay->n_pages - 1;
     if (r->page < 0) r->page = 0;

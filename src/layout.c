@@ -189,7 +189,7 @@ static rline_t *rl_push(rlist_t *L) {
     return r;
 }
 
-layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html) {
+layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href) {
     layout_t *L = calloc(1, sizeof(layout_t));
     L->page_h = SCREEN_H - TITLE_H - STATUS_H - PROG_H - 6;
 
@@ -206,9 +206,11 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html) {
             SDL_Surface *img = NULL;
             if (ep && b->img_href) {
                 size_t isz = 0;
-                unsigned char *ibuf = epub_read_file(ep, b->img_href, &isz);
+                unsigned char *ibuf = epub_read_file_rel(ep, doc_href, b->img_href, &isz);
+                fprintf(stderr, "[img] src=%s read=%s size=%zu\n", b->img_href, ibuf ? "OK" : "NULL", isz);
                 if (ibuf) {
                     img = img_decode_scaled(ibuf, isz, maxw_full, L->page_h - 4);
+                    fprintf(stderr, "[img] decode=%s\n", img ? "OK" : "NULL");
                     free(ibuf);
                 }
             }

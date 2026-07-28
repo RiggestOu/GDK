@@ -39,8 +39,9 @@ typedef struct {
     int      page_h;      /* 单页可用高度 */
 } layout_t;
 
-/* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。 */
-layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html);
+/* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。
+   doc_href = 当前章节 XHTML 在 zip 内的路径，用于相对它解析图片 src。 */
+layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href);
 void layout_free(layout_t *L);
 
 /* 绘制排好版的一页（替代旧 ui_draw_reader）。正文用 ui->fg 色，标题/引用用固定色 */
