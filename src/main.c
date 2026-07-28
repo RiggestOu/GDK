@@ -658,9 +658,33 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
 
         if (st == ST_READ) {
             switch (act) {
-                case A_UP:    if (r.page>0){r.page--; save_progress(book,r.spine_idx,r.page);} break;
-                case A_DOWN:  if (r.page<total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break;
-                case A_SELECT:if (r.page<total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break; /* A=下一页 */
+                case A_UP:
+                    if (r.page > 0) {
+                        r.page--;
+                    } else if (r.spine_idx > 0) {
+                        open_chapter(ui, &r, r.spine_idx - 1);
+                        r.page = (r.lay ? r.lay->n_pages - 1 : 0);
+                    }
+                    save_progress(book, r.spine_idx, r.page);
+                    break;
+                case A_DOWN:
+                    if (r.page < total_pages - 1) {
+                        r.page++;
+                    } else if (r.spine_idx < ep->n_spine - 1) {
+                        open_chapter(ui, &r, r.spine_idx + 1);
+                        r.page = 0;
+                    }
+                    save_progress(book, r.spine_idx, r.page);
+                    break;
+                case A_SELECT:
+                    if (r.page < total_pages - 1) {
+                        r.page++;
+                    } else if (r.spine_idx < ep->n_spine - 1) {
+                        open_chapter(ui, &r, r.spine_idx + 1);
+                        r.page = 0;
+                    }
+                    save_progress(book, r.spine_idx, r.page);
+                    break; /* A=下一页 */
                 case A_LEFT:  if (r.spine_idx>0){r.page=0; open_chapter(ui,&r,r.spine_idx-1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
                 case A_RIGHT: if (r.spine_idx<ep->n_spine-1){r.page=0; open_chapter(ui,&r,r.spine_idx+1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
                 case A_BACK:  quit=1; break;
