@@ -47,7 +47,8 @@ static void dim(int f, int *r, int *g, int *bl) {
 
 /* ---------- 初始化 / 释放 ---------- */
 reader_ui_t *ui_init(const char *font_path) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) { fprintf(stderr,"[diag] SDL_Init FAILED: %s\n",SDL_GetError()); return NULL; }
+    /* NOPARACHUTE：禁止 SDL 自装信号处理器覆盖 main 里的 [CRASH] 黑匣子 */
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_NOPARACHUTE) < 0) { fprintf(stderr,"[diag] SDL_Init FAILED: %s\n",SDL_GetError()); return NULL; }
     /* 关键：光初始化 JOYSTICK 子系统不够，必须打开设备，否则收不到按键事件 */
     SDL_JoystickEventState(SDL_ENABLE);
     if (SDL_NumJoysticks() > 0) g_joy = SDL_JoystickOpen(0);
@@ -131,12 +132,20 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     if (size < 10) size = 10;
     if (size > 28) size = 28;
     const char *p = ui->font_path ? ui->font_path : "font.ttf";
+    /* 若字号相同则无需重开字体（也规避二次 OpenFont 触发的崩溃） */
+    if (ui->font && size == ui->font_size) { fprintf(stderr,"[diag] set_font_size(%d) 同字号跳过\n", size); fflush(stderr); return; }
+    fprintf(stderr,"[diag] set_font_size: OpenFont(%s,%d)... ", p, size); fflush(stderr);
     TTF_Font *f = TTF_OpenFont(p, size);
     if (!f) f = TTF_OpenFont("font.ttf", size);
+    fprintf(stderr,"%s\n", f ? "OK" : "FAIL"); fflush(stderr);
     if (!f) return;
+    fprintf(stderr,"[diag] set_font_size: CloseFont 旧字体... "); fflush(stderr);
     if (ui->font) TTF_CloseFont(ui->font);
+    fprintf(stderr,"OK\n"); fflush(stderr);
     ui->font = f; ui->font_size = size;
+    fprintf(stderr,"[diag] set_font_size: FontHeight... "); fflush(stderr);
     ui->line_h = TTF_FontHeight(ui->font) + 2;
+    fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
 }
 void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
 void ui_set_brightness(reader_ui_t *ui, int pct) {
