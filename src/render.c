@@ -129,6 +129,7 @@ void ui_text(reader_ui_t *ui, int x, int y, const char *text) {
 
 /* ---------- 配置变更 ---------- */
 void ui_set_font_size(reader_ui_t *ui, int size) {
+    fprintf(stderr,"[diag] set_font_size 入口 size=%d ui=%p\n", size, (void*)ui); fflush(stderr);
     if (size < 10) size = 10;
     if (size > 28) size = 28;
     const char *p = ui->font_path ? ui->font_path : "font.ttf";

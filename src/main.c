@@ -138,6 +138,9 @@ static void wr_hex(unsigned long v) {
 }
 static void crash_handler(int sig, siginfo_t *si, void *uc) {
     (void)uc;
+    /* 防递归：先把所有信号恢复默认，处理器内再崩就直接内核处置 */
+    signal(SIGILL, SIG_DFL); signal(SIGSEGV, SIG_DFL);
+    signal(SIGBUS, SIG_DFL); signal(SIGFPE, SIG_DFL);
     wr_str("\n[CRASH] signal=");
     wr_str(sig==SIGILL?"SIGILL":sig==SIGSEGV?"SIGSEGV":sig==SIGBUS?"SIGBUS":sig==SIGFPE?"SIGFPE":"???");
     wr_str(" fault_addr="); wr_hex((unsigned long)si->si_addr);
@@ -161,10 +164,30 @@ static void install_crash_handler(void) {
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = crash_handler;
     sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGILL,  &sa, NULL);
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGBUS,  &sa, NULL);
-    sigaction(SIGFPE,  &sa, NULL);
+    int r1 = sigaction(SIGILL,  &sa, NULL);
+    int r2 = sigaction(SIGSEGV, &sa, NULL);
+    int r3 = sigaction(SIGBUS,  &sa, NULL);
+    int r4 = sigaction(SIGFPE,  &sa, NULL);
+    fprintf(stderr, "[diag] sigaction 结果: ILL=%d SEGV=%d BUS=%d FPE=%d\n", r1,r2,r3,r4);
+    fflush(stderr);
+}
+
+#include <sys/wait.h>
+/* 黑匣子自检：fork 子进程故意触发 SIGSEGV，验证处理器真的能接管(应 exit 97) */
+static void selftest_crash_handler(void) {
+    pid_t pid = fork();
+    if (pid == 0) {                    /* 子进程：装处理器 → 故意崩 */
+        install_crash_handler();
+        *(volatile int *)0x11 = 42;    /* SIGSEGV */
+        _exit(1);                      /* 不应到达 */
+    }
+    if (pid > 0) {
+        int st = 0; waitpid(pid, &st, 0);
+        int code = WIFEXITED(st) ? WEXITSTATUS(st) : -WTERMSIG(st);
+        fprintf(stderr, "[diag] 黑匣子自检: 子进程退出=%d (%s)\n",
+                code, code == 97 ? "处理器有效" : "处理器无效!信号未被接管");
+        fflush(stderr);
+    }
 }
 
 /* ================= 配置读写 ================= */
@@ -192,7 +215,9 @@ static void save_config(const cfg_t *c) {
     }
 }
 static void apply_config(reader_ui_t *ui, const cfg_t *c) {
+    fprintf(stderr,"[diag] apply_config 入口 font_index=%d\n", c->font_index); fflush(stderr);
     ui_set_font_size(ui, font_sizes[c->font_index]);
+    fprintf(stderr,"[diag] apply_config: set_font_size 返回\n"); fflush(stderr);
     ui_set_fg(ui, fg_colors[c->fg_index][0], fg_colors[c->fg_index][1], fg_colors[c->fg_index][2]);
     ui_set_brightness(ui, brights[c->bright_index]);
 }
@@ -563,6 +588,7 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
 int main(int argc, char **argv) {
     install_crash_handler();
     fprintf(stderr, "[diag] main() 启动, 崩溃处理器已装, build=" __DATE__ " " __TIME__ "\n"); fflush(stderr);
+    selftest_crash_handler();
     setup_runtime_env();
     const char *font=NULL, *direct_file=NULL;
     for (int i=1;i<argc;i++) {
