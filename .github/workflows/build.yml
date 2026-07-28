@@ -12,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 保险：共享 runner 偶发卡死会导致 job 一直挂到 6h 默认超时。
+    # 本构建(下载22s+编译打包<2min)远用不到 20min，设此上限可让抽风快速失败。
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
