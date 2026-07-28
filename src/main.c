@@ -3,6 +3,7 @@
 #include "zip.h"
 #include "util.h"
 #include "layout.h"
+#include "imgdec.h"   /* img_decode 原图按需解码 */
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -94,6 +95,8 @@ static int g_btn_down = 0;
 #define KMOD_R1    (1 << 3)
 #define KMOD_R2    (1 << 4)
 static int g_key_down = 0;
+/* 本轮肩键按住期间是否产生过组合动作；若没有，则肩键单按抬起=翻页 */
+static int g_shoulder_combo = 0;
 
 /* App 级退出标志：阅读中按 L1/L2+START 也要直接退出整个 App（不是退回浏览器） */
 static int g_quit_app = 0;
@@ -109,33 +112,58 @@ static enum Action event_to_action(const SDL_Event *ev) {
         else if (sym == SDLK_RETURN) bit = KMOD_START; /* START */
         else if (sym == SDLK_BACKSPACE) bit = KMOD_R1; /* R1 */
         else if (sym == SDLK_PAGEDOWN)  bit = KMOD_R2; /* R2 */
-        if (bit) { if (down) g_key_down |= bit; else g_key_down &= ~bit; }
+        if (bit) {
+            if (down) {
+                if (!(g_key_down & bit)) g_shoulder_combo = 0; /* 新一次肩键按下，清空组合标志 */
+                g_key_down |= bit;
+            } else {
+                g_key_down &= ~bit;
+                /* 肩键抬起：本轮没产生过组合 → 单按 = 翻页 */
+                if (!g_key_down && !g_shoulder_combo) {
+                    if (bit == KMOD_L1 || bit == KMOD_L2) return A_UP;
+                    if (bit == KMOD_R1 || bit == KMOD_R2) return A_DOWN;
+                }
+                return A_NONE;
+            }
+        }
         if (!down) return A_NONE;
         /* 组合键：L1+START / L2+START = 强制退出（自动书签） */
-        if (sym == SDLK_RETURN && (g_key_down & (KMOD_L1 | KMOD_L2)))
-            return A_QUIT_FORCE;
-        if ((sym == SDLK_TAB || sym == SDLK_PAGEUP) && (g_key_down & KMOD_START))
-            return A_QUIT_FORCE;
+        if (sym == SDLK_RETURN && (g_key_down & (KMOD_L1 | KMOD_L2))) { g_shoulder_combo = 1; return A_QUIT_FORCE; }
+        if ((sym == SDLK_TAB || sym == SDLK_PAGEUP) && (g_key_down & KMOD_START)) { g_shoulder_combo = 1; return A_QUIT_FORCE; }
         /* 图片层：L1+L2 / R1+R2 = 进/出图片缩放界面 */
-        if ((g_key_down & (KMOD_L1 | KMOD_L2)) == (KMOD_L1 | KMOD_L2)) return A_PIC;
-        if ((g_key_down & (KMOD_R1 | KMOD_R2)) == (KMOD_R1 | KMOD_R2)) return A_PIC;
-        return key_to_action(sym);
+        if ((g_key_down & (KMOD_L1 | KMOD_L2)) == (KMOD_L1 | KMOD_L2)) { g_shoulder_combo = 1; return A_PIC; }
+        if ((g_key_down & (KMOD_R1 | KMOD_R2)) == (KMOD_R1 | KMOD_R2)) { g_shoulder_combo = 1; return A_PIC; }
+        /* 普通键：若正按住肩键则标记组合（避免抬起误翻页） */
+        enum Action ka = key_to_action(sym);
+        if (ka != A_NONE && (g_key_down & (KMOD_L1 | KMOD_L2 | KMOD_R1 | KMOD_R2))) g_shoulder_combo = 1;
+        return ka;
     }
     if (ev->type == SDL_JOYBUTTONDOWN || ev->type == SDL_JOYBUTTONUP) {
         int b = ev->jbutton.button;
         int down = (ev->type == SDL_JOYBUTTONDOWN);
-        if (!down) { g_btn_down &= ~(1 << b); return A_NONE; }
+        if (!down) {
+            g_btn_down &= ~(1 << b);
+            /* 肩键抬起：本轮无组合 → 单按翻页 */
+            int sh = (1 << BTN_L1) | (1 << BTN_L2) | (1 << BTN_R1) | (1 << BTN_R2);
+            if ((b==BTN_L1||b==BTN_L2||b==BTN_R1||b==BTN_R2) && (g_btn_down & sh)==0 && !g_shoulder_combo) {
+                if (b==BTN_L1||b==BTN_L2) return A_UP;
+                else return A_DOWN;
+            }
+            return A_NONE;
+        }
+        if (!((g_btn_down >> b) & 1)) g_shoulder_combo = 0; /* 新一次按下 */
         g_btn_down |= (1 << b);
         /* 组合键：L1/L2 + START = 强制退出（退出时自动加书签） */
         if (b == BTN_START) {
-            if (g_btn_down & (1 << BTN_L1)) return A_QUIT_FORCE;
-            if (g_btn_down & (1 << BTN_L2)) return A_QUIT_FORCE;
+            if (g_btn_down & (1 << BTN_L1)) { g_shoulder_combo = 1; return A_QUIT_FORCE; }
+            if (g_btn_down & (1 << BTN_L2)) { g_shoulder_combo = 1; return A_QUIT_FORCE; }
         }
-        if ((b == BTN_L1 || b == BTN_L2) && (g_btn_down & (1 << BTN_START)))
-            return A_QUIT_FORCE;
+        if ((b == BTN_L1 || b == BTN_L2) && (g_btn_down & (1 << BTN_START))) { g_shoulder_combo = 1; return A_QUIT_FORCE; }
         /* 图片层：L1+L2 / R1+R2 = 进/出图片缩放界面 */
-        if ((g_btn_down & ((1 << BTN_L1) | (1 << BTN_L2))) == ((1 << BTN_L1) | (1 << BTN_L2))) return A_PIC;
-        if ((g_btn_down & ((1 << BTN_R1) | (1 << BTN_R2))) == ((1 << BTN_R1) | (1 << BTN_R2))) return A_PIC;
+        if ((g_btn_down & ((1 << BTN_L1) | (1 << BTN_L2))) == ((1 << BTN_L1) | (1 << BTN_L2))) { g_shoulder_combo = 1; return A_PIC; }
+        if ((g_btn_down & ((1 << BTN_R1) | (1 << BTN_R2))) == ((1 << BTN_R1) | (1 << BTN_R2))) { g_shoulder_combo = 1; return A_PIC; }
+        int sh = (1 << BTN_L1) | (1 << BTN_L2) | (1 << BTN_R1) | (1 << BTN_R2);
+        if (g_btn_down & sh) g_shoulder_combo = 1; /* 按住肩键时按其它键=组合 */
         /* 单键映射 */
         switch (b) {
             case BTN_A: return A_SELECT;
@@ -147,6 +175,8 @@ static enum Action event_to_action(const SDL_Event *ev) {
         }
     }
     if (ev->type == SDL_JOYHATMOTION) {
+        int sh = g_btn_down & ((1 << BTN_L1) | (1 << BTN_L2) | (1 << BTN_R1) | (1 << BTN_R2));
+        if (sh) g_shoulder_combo = 1; /* 肩键+方向=组合（选图），避免抬起误翻页 */
         if (ev->jhat.value & SDL_HAT_UP)    return A_UP;
         if (ev->jhat.value & SDL_HAT_DOWN)  return A_DOWN;
         if (ev->jhat.value & SDL_HAT_LEFT)  return A_LEFT;
@@ -599,7 +629,14 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
         if (st == ST_READ) {
             if (act == A_PIC) {
                 if (np > 0) {
-                    pic_full = r.lay->pics[page_pics[pic_focus]].full;
+                    int idx = page_pics[pic_focus];
+                    pic_full = r.lay->pics[idx].full;
+                    if (!pic_full && r.ep && r.lay->pics[idx].href) {
+                        /* 原图延迟解码：开章时不再解码，进缩放时才解，避免加载缓慢 */
+                        size_t fsz = 0;
+                        unsigned char *fbuf = epub_read_file_rel(r.ep, r.ep->spine[r.spine_idx], r.lay->pics[idx].href, &fsz);
+                        if (fbuf) { pic_full = img_decode(fbuf, fsz); free(fbuf); if (pic_full) r.lay->pics[idx].full = pic_full; }
+                    }
                     if (pic_full) {
                         enter_picview(ui, &pic_disp, &pic_zoom, &pic_ox, &pic_oy, pic_full);
                         st = ST_PICVIEW;
@@ -658,10 +695,11 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 if (nz != pic_zoom) zoom_picview(ui, &pic_disp, &pic_zoom, &pic_ox, &pic_oy, pic_full, nz);
             } else {
                 int step = 24;
-                if (act == A_UP || act == A_BOOKMARK)       pic_oy -= step;  /* 上移 */
-                else if (act == A_DOWN || act == A_BACK)    pic_oy += step;  /* 下移 */
-                else if (act == A_LEFT || act == A_MENU)    pic_ox -= step;  /* 左移 */
-                else if (act == A_RIGHT || act == A_SELECT) pic_ox += step;  /* 右移 */
+                /* 镜头语义：↑=镜头上→图下；↓=镜头下→图上；←=镜头左→图右；→=镜头右→图左 */
+                if (act == A_UP || act == A_BOOKMARK)       pic_oy += step;  /* 图下 */
+                else if (act == A_DOWN || act == A_BACK)    pic_oy -= step;  /* 图上 */
+                else if (act == A_LEFT || act == A_MENU)    pic_ox += step;  /* 图右 */
+                else if (act == A_RIGHT || act == A_SELECT) pic_ox -= step;  /* 图左 */
             }
             clamp_picview(&pic_ox, &pic_oy, pic_disp);
             continue;

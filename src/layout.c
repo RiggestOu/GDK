@@ -218,17 +218,12 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
                 }
             }
             if (img) {
-                /* 解码原图（供缩放查看器放大细节；失败存 NULL，缩放时显示占位） */
-                SDL_Surface *full = NULL;
-                if (ep && b->img_href) {
-                    size_t fsz = 0;
-                    unsigned char *fbuf = epub_read_file_rel(ep, doc_href, b->img_href, &fsz);
-                    if (fbuf) { full = img_decode(fbuf, fsz); free(fbuf); }
-                }
+                /* 原图延迟到进入缩放界面时再解码（避免开章时成倍解码拖慢加载），此处仅记录 href */
                 if (npic >= cap_pic) { cap_pic = cap_pic ? cap_pic * 2 : 8; picbuf = realloc(picbuf, cap_pic * sizeof(pic_ent_t)); }
                 picbuf[npic].line = rl.n;   /* 即将 push 的行索引 */
                 picbuf[npic].page = -1;
-                picbuf[npic].full = full;
+                picbuf[npic].full = NULL;
+                picbuf[npic].href = b->img_href ? strdup(b->img_href) : NULL;
                 npic++;
 
                 y += 4;
@@ -350,8 +345,10 @@ void layout_free(layout_t *L) {
     free(L->lines);
     free(L->page_start);
     if (L->pics) {
-        for (int i = 0; i < L->n_pics; i++)
+        for (int i = 0; i < L->n_pics; i++) {
             if (L->pics[i].full) SDL_FreeSurface(L->pics[i].full);
+            if (L->pics[i].href) free(L->pics[i].href);
+        }
         free(L->pics);
     }
     free(L);
@@ -384,9 +381,12 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                 SDL_Rect dst = { r->x, (Sint16)(dy + 2), 0, 0 };
                 SDL_BlitSurface(r->img, NULL, ui->screen, &dst);
                 if (i == focus_line && focus_label) {
-                    /* 焦点高亮：金色双层边框 + 标签 */
-                    ui_rect(ui, r->x - 2, dy + 1, r->img->w + 4, r->img->h + 4, 255, 210, 60);
-                    ui_rect(ui, r->x,     dy + 3, r->img->w,     r->img->h,     255, 210, 60);
+                    /* 焦点高亮：仅金色边框（不覆盖缩略图）+ 标签 */
+                    int bx = r->x - 2, by = dy + 1, bw = r->img->w + 4, bh = r->img->h + 4, t = 2;
+                    ui_rect(ui, bx,           by,            bw, t,     255, 210, 60); /* 上 */
+                    ui_rect(ui, bx,           by + bh - t,   bw, t,     255, 210, 60); /* 下 */
+                    ui_rect(ui, bx,           by,            t,  bh,    255, 210, 60); /* 左 */
+                    ui_rect(ui, bx + bw - t,  by,            t,  bh,    255, 210, 60); /* 右 */
                     int ly = dy - 12; if (ly < TITLE_H + 1) ly = dy + r->img->h + 4;
                     ui_text_rgb(ui, r->x, ly, focus_label, 255, 210, 60);
                 }

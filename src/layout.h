@@ -30,11 +30,12 @@ typedef struct {
     unsigned char bold;
 } rline_t;
 
-/* 图片原图（供缩放查看器放大细节）。由 layout 持有并在 layout_free 释放 full。 */
+/* 图片原图（供缩放查看器放大细节）。由 layout 持有并在 layout_free 释放 full/href。 */
 typedef struct {
     int           line;   /* 在 layout_t.lines 中的行索引 */
     int           page;   /* 该图片落在第几页（分页后填） */
-    SDL_Surface  *full;   /* 原始分辨率 surface（未缩放） */
+    SDL_Surface  *full;   /* 原始分辨率 surface（未缩放；进入缩放界面时按需解码并缓存） */
+    char         *href;   /* 图片相对当前章节文档的引用路径，供按需解码 */
 } pic_ent_t;
 
 typedef struct {
