@@ -27,18 +27,23 @@ static int ends_with(const char *s, const char *suf) {
     return strcasecmp(s + ls - lf, suf) == 0;
 }
 
+/* GDK mini 物理键→键盘事件映射（run.log 实测 + OpenDingux 标准）：
+   A=LCTRL(306) B=LALT(308) X=LSHIFT(304) Y=SPACE(32)
+   L1=TAB(9) R1=BACKSPACE(8) START=RETURN(13) SELECT=ESC(27) 方向=光标键 */
 static enum Action key_to_action(int key) {
     switch (key) {
         case SDLK_UP:    case SDLK_w: return A_UP;
         case SDLK_DOWN:  case SDLK_s: return A_DOWN;
         case SDLK_LEFT:  case SDLK_a: return A_LEFT;
         case SDLK_RIGHT: case SDLK_d: return A_RIGHT;
-        case SDLK_RETURN:case SDLK_SPACE: return A_SELECT;
-        case SDLK_ESCAPE:case SDLK_q: return A_BACK;
-        case SDLK_m: return A_MENU;
-        case SDLK_k: return A_BOOKMARK;
-        case SDLK_PAGEUP:   return A_UP;     /* 键盘：上一页 */
-        case SDLK_PAGEDOWN: return A_DOWN;   /* 键盘：下一页 */
+        case SDLK_LCTRL:                          return A_SELECT;   /* A 键 */
+        case SDLK_RETURN:                         return A_SELECT;   /* START */
+        case SDLK_LALT:  case SDLK_q:             return A_BACK;     /* B 键 */
+        case SDLK_ESCAPE:                         return A_BACK;     /* SELECT */
+        case SDLK_LSHIFT: case SDLK_m:            return A_MENU;     /* X 键 */
+        case SDLK_SPACE:  case SDLK_k:            return A_BOOKMARK; /* Y 键 */
+        case SDLK_TAB:      case SDLK_PAGEUP:     return A_UP;       /* L1=上一页 */
+        case SDLK_BACKSPACE:case SDLK_PAGEDOWN:   return A_DOWN;     /* R1=下一页 */
         default: return A_NONE;
     }
 }
