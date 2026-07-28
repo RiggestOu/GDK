@@ -51,6 +51,23 @@ char *epub_read_text(epub_t *e, const char *href) {
     return text;
 }
 
+/* 读取原始 XHTML（不剥标签，排版引擎用），返回 malloc（需 free） */
+char *epub_read_html(epub_t *e, const char *href) {
+    char *resolved = epub_resolve(e, href);
+    size_t sz = 0;
+    unsigned char *data = zip_read(e->zip, resolved, &sz);
+    free(resolved);
+    return (char *)data;
+}
+
+/* 读取任意资源（图片等），返回 malloc 缓冲区与大小 */
+unsigned char *epub_read_file(epub_t *e, const char *href, size_t *out_sz) {
+    char *resolved = epub_resolve(e, href);
+    unsigned char *data = zip_read(e->zip, resolved, out_sz);
+    free(resolved);
+    return data;
+}
+
 /* 解析 manifest：遍历 <item ...>，跳过 <itemref */
 static void parse_manifest(epub_t *e, const char *opf) {
     const char *p = opf;
@@ -105,63 +122,96 @@ static void parse_spine(epub_t *e, const char *opf) {
     }
 }
 
-/* 解析 EPUB3 nav 文档（扫描 <a href>...）</a>） */
+static void toc_add(epub_t *e, char *label, char *href, int level) {
+    if (level < 1) level = 1;
+    e->toc = realloc(e->toc, (e->n_toc + 1) * sizeof(toc_entry_t));
+    e->toc[e->n_toc].label = label;
+    e->toc[e->n_toc].href = href;
+    e->toc[e->n_toc].level = level;
+    e->n_toc++;
+}
+
+/* 解析 EPUB3 nav 文档：<ol> 嵌套深度 = 目录层级 */
 static void parse_nav(epub_t *e, const char *navtext) {
     const char *p = navtext;
-    while ((p = stristr(p, "<a ")) != NULL) {
-        const char *gt = strchr(p, '>');
+    int depth = 0;
+    for (;;) {
+        const char *ol_o = stristr(p, "<ol");
+        const char *ol_c = stristr(p, "</ol");
+        const char *a_o  = stristr(p, "<a ");
+        /* 找三者中最靠前的 */
+        const char *next = NULL; int kind = 0;
+        if (ol_o) { next = ol_o; kind = 1; }
+        if (ol_c && (!next || ol_c < next)) { next = ol_c; kind = 2; }
+        if (a_o  && (!next || a_o  < next)) { next = a_o;  kind = 3; }
+        if (!next) break;
+        if (kind == 1) { depth++; p = next + 3; continue; }
+        if (kind == 2) { depth--; if (depth < 0) depth = 0; p = next + 4; continue; }
+        /* <a ...> */
+        const char *gt = strchr(next, '>');
         if (!gt) break;
-        char *tag = strndup_(p, (size_t)(gt - p + 1));
+        char *tag = strndup_(next, (size_t)(gt - next + 1));
         char *href = get_attr(tag, "href");
         const char *a_start = gt + 1;
         const char *a_end = stristr(a_start, "</a>");
         char *raw = a_end ? strndup_(a_start, (size_t)(a_end - a_start)) : strdup("");
         char *label = strip_tags(raw);
         if (href && label && *trim(label)) {
-            e->toc = realloc(e->toc, (e->n_toc + 1) * sizeof(toc_entry_t));
-            e->toc[e->n_toc].label = label;
-            e->toc[e->n_toc].href = href;
-            e->n_toc++;
-            label = NULL; href = NULL;
+            char *lb = strdup(trim(label));
+            free(label);
+            toc_add(e, lb, href, depth > 0 ? depth : 1);
+            href = NULL; label = NULL;
         }
         free(tag); free(raw); free(label); free(href);
         p = gt + 1;
     }
 }
 
-/* 解析 EPUB2 NCX（<navPoint><navLabel><text>..</text></navLabel><content src=..></navPoint>） */
+/* 解析 EPUB2 NCX：<navPoint> 嵌套深度 = 目录层级。
+   逐标签扫描并维护 depth（旧实现会把嵌套子 navPoint 整块跳过，多级目录丢失）。 */
 static void parse_ncx(epub_t *e, const char *ncx) {
     const char *p = ncx;
-    while ((p = stristr(p, "<navPoint")) != NULL) {
-        const char *end = stristr(p, "</navPoint>");
-        if (!end) break;
-        char *block = strndup_(p, (size_t)(end - p) + 12);
-        char *navlabel = tag_content(block, "navLabel");
-        char *label = NULL;
-        if (navlabel) {
-            char *t = tag_content(navlabel, "text");
-            if (t) { label = trim(t); free(t); }
-            free(navlabel);
-        }
-        char *content = stristr(block, "<content");
-        char *href = NULL;
-        if (content) {
-            const char *gt = strchr(content, '>');
-            if (gt) {
-                char *ctag = strndup_(content, (size_t)(gt - content + 1));
-                href = get_attr(ctag, "src");
-                free(ctag);
+    int depth = 0;
+    for (;;) {
+        const char *op = stristr(p, "<navPoint");
+        const char *cl = stristr(p, "</navPoint");
+        if (!op && !cl) break;
+        if (op && (!cl || op < cl)) {
+            depth++;
+            const char *gt = strchr(op, '>');
+            if (!gt) break;
+            /* 本 navPoint 自己的 navLabel/content 位于下一个（子/闭）navPoint 之前 */
+            const char *nxt_o = stristr(gt + 1, "<navPoint");
+            const char *nxt_c = stristr(gt + 1, "</navPoint");
+            const char *lim = NULL;
+            if (nxt_o && nxt_c) lim = nxt_o < nxt_c ? nxt_o : nxt_c;
+            else lim = nxt_o ? nxt_o : nxt_c;
+            size_t rl = lim ? (size_t)(lim - (gt + 1)) : strlen(gt + 1);
+            char *region = strndup_(gt + 1, rl);
+            char *label = NULL, *href = NULL;
+            char *navlabel = tag_content(region, "navLabel");
+            if (navlabel) {
+                char *t = tag_content(navlabel, "text");
+                if (t) { char *d = decode_entities(t); label = strdup(trim(d)); free(d); free(t); }
+                free(navlabel);
             }
+            const char *content = stristr(region, "<content");
+            if (content) {
+                const char *g2 = strchr(content, '>');
+                if (g2) {
+                    char *ctag = strndup_(content, (size_t)(g2 - content + 1));
+                    href = get_attr(ctag, "src");
+                    free(ctag);
+                }
+            }
+            free(region);
+            if (label && href && *label) { toc_add(e, label, href, depth); }
+            else { free(label); free(href); }
+            p = gt + 1;
+        } else {
+            depth--; if (depth < 0) depth = 0;
+            p = cl + 10;
         }
-        if (label && href && *label) {
-            e->toc = realloc(e->toc, (e->n_toc + 1) * sizeof(toc_entry_t));
-            e->toc[e->n_toc].label = label;
-            e->toc[e->n_toc].href = href;
-            e->n_toc++;
-            label = NULL; href = NULL;
-        }
-        free(block); free(label); free(href);
-        p = end + 12;
     }
 }
 
@@ -226,12 +276,9 @@ static void parse_toc(epub_t *e) {
     /* 都没有则按 spine 生成章节列表 */
     if (e->n_toc == 0) {
         for (int i = 0; i < e->n_spine; i++) {
-            e->toc = realloc(e->toc, (e->n_toc + 1) * sizeof(toc_entry_t));
             char buf[32];
             snprintf(buf, sizeof(buf), "Chapter %d", i + 1);
-            e->toc[e->n_toc].label = strdup(buf);
-            e->toc[e->n_toc].href = strdup(e->spine[i]);
-            e->n_toc++;
+            toc_add(e, strdup(buf), strdup(e->spine[i]), 1);
         }
     }
 }

@@ -89,8 +89,38 @@ reader_ui_t *ui_init(const char *font_path) {
     return ui;
 }
 
+/* 标题字体懒加载（h1=正文+7，h2=正文+4） */
+static void open_heading_fonts(reader_ui_t *ui) {
+    const char *p = ui->font_path ? ui->font_path : "font.ttf";
+    if (!ui->font_h1) ui->font_h1 = TTF_OpenFont(p, ui->font_size + 7);
+    if (!ui->font_h2) ui->font_h2 = TTF_OpenFont(p, ui->font_size + 4);
+}
+TTF_Font *ui_style_font(reader_ui_t *ui, int style, int *bold) {
+    if (bold) *bold = 0;
+    if (style == 1) { open_heading_fonts(ui); if (bold) *bold = 1; return ui->font_h1 ? ui->font_h1 : ui->font; }
+    if (style == 2) { open_heading_fonts(ui); if (bold) *bold = 1; return ui->font_h2 ? ui->font_h2 : ui->font; }
+    if (style == 3) { if (bold) *bold = 1; return ui->font; }
+    return ui->font;
+}
+void ui_text_font(reader_ui_t *ui, TTF_Font *f, int bold, int x, int y,
+                  const char *text, int r, int g, int b) {
+    if (!text || !*text || !f) return;
+    int rr = r, gg = g, bb = b; dim(ui->brightness, &rr, &gg, &bb);
+    SDL_Color fg = { (Uint8)rr, (Uint8)gg, (Uint8)bb, 255 };
+    int old = TTF_GetFontStyle(f);
+    if (bold) TTF_SetFontStyle(f, old | TTF_STYLE_BOLD);
+    SDL_Surface *s = TTF_RenderUTF8_Solid(f, text, fg);
+    if (bold) TTF_SetFontStyle(f, old);
+    if (!s) return;
+    SDL_Rect dst = { x, y, 0, 0 };
+    SDL_BlitSurface(s, NULL, ui->screen, &dst);
+    SDL_FreeSurface(s);
+}
+
 void ui_quit(reader_ui_t *ui) {
     if (!ui) return;
+    if (ui->font_h1) TTF_CloseFont(ui->font_h1);
+    if (ui->font_h2) TTF_CloseFont(ui->font_h2);
     if (ui->font) TTF_CloseFont(ui->font);
     if (ui->font_path) free(ui->font_path);
     if (g_joy) { SDL_JoystickClose(g_joy); g_joy = NULL; }
@@ -144,6 +174,9 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     if (ui->font) TTF_CloseFont(ui->font);
     fprintf(stderr,"OK\n"); fflush(stderr);
     ui->font = f; ui->font_size = size;
+    /* 字号变了，标题字体作废（下次用时按新字号重开） */
+    if (ui->font_h1) { TTF_CloseFont(ui->font_h1); ui->font_h1 = NULL; }
+    if (ui->font_h2) { TTF_CloseFont(ui->font_h2); ui->font_h2 = NULL; }
     fprintf(stderr,"[diag] set_font_size: FontHeight... "); fflush(stderr);
     ui->line_h = TTF_FontHeight(ui->font) + 2;
     fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
@@ -264,18 +297,29 @@ void ui_draw_menu(reader_ui_t *ui, const char *title,
     ui_text_rgb(ui, px + 6, py + 3, title, ui->accent_r, ui->accent_g, ui->accent_b);
 
     int ly = py + 16;
-    for (int i = 0; i < n; i++) {
-        int y = ly + i * ui->line_h;
+    /* 滚动：以选中项为中心，超出面板的条目滚动显示 */
+    int visible = (ph - 16) / ui->line_h;
+    if (visible < 1) visible = 1;
+    int first = 0;
+    if (n > visible) {
+        first = sel - visible / 2;
+        if (first < 0) first = 0;
+        if (first + visible > n) first = n - visible;
+    }
+    for (int i = first; i < n && (i - first) < visible; i++) {
+        int y = ly + (i - first) * ui->line_h;
         if (i == sel)
             ui_rect(ui, px + 3, y - 1, pw - 6, ui->line_h, ui->accent_r / 2, ui->accent_g / 2, ui->accent_b / 2);
         int col = items[i].enabled ? 235 : 110;
-        char buf[64];
+        char buf[128];
         if (items[i].value && *items[i].value)
             snprintf(buf, sizeof(buf), "%s: %s", items[i].label, items[i].value);
         else
             snprintf(buf, sizeof(buf), "%s", items[i].label);
         ui_text_rgb(ui, px + 8, y, buf, col, col, col);
     }
+    if (first > 0)           draw_tri_up(ui, px + pw - 12, py + 4);
+    if (first + visible < n) draw_tri_dn(ui, px + pw - 12, py + ph - 8);
     ui_draw_status(ui, "A/Y 选择", "B 返回");
     ui_flip(ui);
 }
@@ -314,8 +358,11 @@ void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
     ui_flip(ui);
 }
 
-/* ---------- 文本折行（保留原实现） ---------- */
+/* ---------- 文本折行 ---------- */
 char **wrap_text(reader_ui_t *ui, const char *text, int *out_n) {
+    return wrap_text_font(ui->font, text, SCREEN_W - 2 * ui->margin, out_n);
+}
+char **wrap_text_font(TTF_Font *font, const char *text, int maxw, int *out_n) {
     typedef struct { char *s; int w; int cjk; } tok_t;
     tok_t *toks = NULL; int nt = 0, cap = 0;
 
@@ -349,10 +396,9 @@ char **wrap_text(reader_ui_t *ui, const char *text, int *out_n) {
     else free(cur);
 
     int space_w = 0, h = 0;
-    TTF_SizeUTF8(ui->font, " ", &space_w, &h);
-    for (int i = 0; i < nt; i++) TTF_SizeUTF8(ui->font, toks[i].s, &toks[i].w, &h);
+    TTF_SizeUTF8(font, " ", &space_w, &h);
+    for (int i = 0; i < nt; i++) TTF_SizeUTF8(font, toks[i].s, &toks[i].w, &h);
 
-    int maxw = SCREEN_W - 2 * ui->margin;
     char **lines = NULL; int nl = 0;
     char *line = malloc(1); line[0] = 0; int lw = 0; int prev_cjk = 0;
     for (int i = 0; i < nt; i++) {

@@ -2,6 +2,7 @@
 #include "epub.h"
 #include "zip.h"
 #include "util.h"
+#include "layout.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -91,6 +92,9 @@ static int g_btn_down = 0;
 #define KMOD_L2    (1 << 1)
 #define KMOD_START (1 << 2)
 static int g_key_down = 0;
+
+/* App 级退出标志：阅读中按 L1/L2+START 也要直接退出整个 App（不是退回浏览器） */
+static int g_quit_app = 0;
 
 /* 把 SDL 事件转成 Action：joystick 按钮 0/1/2/3 = A/B/X/Y，HAT=方向；键盘 keymap 兼容 */
 static enum Action event_to_action(const SDL_Event *ev) {
@@ -271,18 +275,34 @@ static void save_progress(const char *book, int sp, int pg) {
     if (f) { fprintf(f, "%d %d\n", sp, pg); fclose(f); }
     free(pp);
 }
-static void load_bookmark(const char *book, int *sp, int *pg) {
-    *sp = -1; *pg = 0;
+/* 多书签：.bookmark 文件每行一条 "spine页 page页" */
+#define MAX_BM 32
+typedef struct { int sp, pg; } bm_t;
+static int load_bookmarks(const char *book, bm_t *bms) {
+    int n = 0;
     char *pp = sidecar_path(book, ".bookmark");
     FILE *f = fopen(pp, "r");
-    if (f) { fscanf(f, "%d %d", sp, pg); fclose(f); }
+    if (f) {
+        int sp, pg;
+        while (n < MAX_BM && fscanf(f, "%d %d", &sp, &pg) == 2)
+            if (sp >= 0) { bms[n].sp = sp; bms[n].pg = pg; n++; }
+        fclose(f);
+    }
     free(pp);
+    return n;
 }
-static void save_bookmark(const char *book, int sp, int pg) {
+static void save_bookmarks(const char *book, const bm_t *bms, int n) {
     char *pp = sidecar_path(book, ".bookmark");
     FILE *f = fopen(pp, "w");
-    if (f) { fprintf(f, "%d %d\n", sp, pg); fclose(f); }
+    if (f) {
+        for (int i = 0; i < n; i++) fprintf(f, "%d %d\n", bms[i].sp, bms[i].pg);
+        fclose(f);
+    }
     free(pp);
+}
+static int bm_find(const bm_t *bms, int n, int sp, int pg) {
+    for (int i = 0; i < n; i++) if (bms[i].sp == sp && bms[i].pg == pg) return i;
+    return -1;
 }
 
 /* ================= 浏览器辅助 ================= */
@@ -327,36 +347,64 @@ typedef struct {
     epub_t *ep;
     int spine_idx;
     int page;
-    char **lines;
-    int n_lines;
-    int per_page;
-    int total_pages;
+    layout_t *lay;      /* 当前章排版结果（像素级分页，含图片） */
     char *title;
 } reading_t;
 
-static void free_lines(reading_t *r) {
-    if (r->lines) { for (int i=0;i<r->n_lines;i++) free(r->lines[i]); free(r->lines); r->lines=NULL; }
-    r->n_lines=0;
+static void free_lay(reading_t *r) {
+    if (r->lay) { layout_free(r->lay); r->lay = NULL; }
 }
 static void open_chapter(reader_ui_t *ui, reading_t *r, int idx) {
     if (idx<0 || idx>=r->ep->n_spine) return;
-    free_lines(r);
+    free_lay(r);
     r->spine_idx = idx;
-    char *text = epub_read_text(r->ep, r->ep->spine[idx]);
-    if (!text) text = strdup("(空章节)");
-    r->lines = wrap_text(ui, text, &r->n_lines);
-    free(text);
-    r->per_page = ui_lines_per_page(ui);
-    r->total_pages = (r->n_lines + r->per_page - 1) / r->per_page;
-    if (r->page >= r->total_pages) r->page = r->total_pages - 1;
+    char *html = epub_read_html(r->ep, r->ep->spine[idx]);
+    if (!html) html = strdup("<p>(空章节)</p>");
+    r->lay = layout_chapter(ui, r->ep, html);
+    free(html);
+    if (r->page >= r->lay->n_pages) r->page = r->lay->n_pages - 1;
     if (r->page < 0) r->page = 0;
 }
 
-typedef enum { ST_READ, ST_TOC, ST_MENU, ST_COLOR, ST_FONTSZ, ST_BRIGHT, ST_MODE } rstate;
+/* ---------- 目录树辅助 ----------
+   toc[] 带 level（1 起）。expanded[] 控制每个父节点是否展开。
+   可见节点 = 所有祖先均展开的节点。 */
+static int toc_has_children(epub_t *ep, int i) {
+    return (i + 1 < ep->n_toc && ep->toc[i + 1].level > ep->toc[i].level);
+}
+static int toc_parent(epub_t *ep, int i) {
+    int lv = ep->toc[i].level;
+    for (int j = i - 1; j >= 0; j--)
+        if (ep->toc[j].level < lv) return j;
+    return -1;
+}
+static int toc_visible(epub_t *ep, const unsigned char *expanded, int i) {
+    int p = toc_parent(ep, i);
+    while (p >= 0) {
+        if (!expanded[p]) return 0;
+        p = toc_parent(ep, p);
+    }
+    return 1;
+}
+/* 构建可见列表：返回可见项数量，vis[k]=toc 索引 */
+static int toc_build_visible(epub_t *ep, const unsigned char *expanded, int *vis, int max) {
+    int n = 0;
+    for (int i = 0; i < ep->n_toc && n < max; i++)
+        if (toc_visible(ep, expanded, i)) vis[n++] = i;
+    return n;
+}
+/* 折叠 i 的整棵子树 */
+static void toc_collapse_subtree(epub_t *ep, unsigned char *expanded, int i) {
+    int lv = ep->toc[i].level;
+    expanded[i] = 0;
+    for (int j = i + 1; j < ep->n_toc && ep->toc[j].level > lv; j++) expanded[j] = 0;
+}
+
+typedef enum { ST_READ, ST_TOC, ST_MENU, ST_COLOR, ST_FONTSZ, ST_BRIGHT, ST_MODE, ST_BMLIST } rstate;
 
 static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg) {
     reading_t r; memset(&r,0,sizeof(r)); r.ep=ep;
-    g_btn_down = 0; /* 清空按键状态，避免跨文件残留触发组合键 */
+    g_btn_down = 0; g_key_down = 0; /* 清空按键状态，避免跨文件残留触发组合键 */
     char *nm = strrchr(book,'/'); nm = nm?nm+1:(char*)book;
     r.title = strdup(nm);
 
@@ -364,36 +412,72 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
     if (sp>=ep->n_spine) sp=0;
     open_chapter(ui,&r,sp);
     r.page = pg;
+    if (r.lay && r.page >= r.lay->n_pages) r.page = r.lay->n_pages - 1;
+    if (r.page < 0) r.page = 0;
 
-    int bm_sp=-1, bm_pg=0; load_bookmark(book,&bm_sp,&bm_pg);
-    int has_bm = (bm_sp>=0);
+    /* 多书签 */
+    bm_t bms[MAX_BM]; int n_bm = load_bookmarks(book, bms);
+
+    /* 目录树状态：expanded[i]=父节点是否展开（默认全折叠只看一级） */
+    unsigned char *expanded = calloc((size_t)(ep->n_toc > 0 ? ep->n_toc : 1), 1);
+    int *vis = malloc(sizeof(int) * (size_t)(ep->n_toc > 0 ? ep->n_toc : 1));
+    int toc_sel = 0; /* 可见列表中的选中下标 */
 
     rstate st = ST_READ;
-    int toc_sel=0, menu_sel=0, sub_sel=0;
+    int menu_sel=0, sub_sel=0, bm_sel=0;
     int quit=0;
     while (!quit) {
+        int total_pages = r.lay ? r.lay->n_pages : 1;
+        int at_bm = bm_find(bms, n_bm, r.spine_idx, r.page) >= 0;
         if (st == ST_READ) {
-            int pct = r.total_pages>0 ? (r.page+1)*100/r.total_pages : 0;
-            ui_draw_reader(ui, r.lines, r.n_lines, r.page, r.per_page, r.title, pct, has_bm);
+            int pct = total_pages>0 ? (r.page+1)*100/total_pages : 0;
+            ui_draw_reader_layout(ui, r.lay, r.page, r.title, pct, at_bm);
         } else if (st == ST_TOC) {
-            int n = ep->n_toc<64?ep->n_toc:64;
-            menu_item_t items[64];
-            for (int i=0;i<n;i++) items[i]=(menu_item_t){ep->toc[i].label,"",1};
-            ui_draw_menu(ui,"目录",items,n,toc_sel);
+            int nv = toc_build_visible(ep, expanded, vis, ep->n_toc);
+            if (toc_sel >= nv) toc_sel = nv > 0 ? nv - 1 : 0;
+            static char lbl[256][160]; /* 组合缩进+标记+标签 */
+            menu_item_t items[256];
+            int n = nv < 256 ? nv : 256;
+            for (int k = 0; k < n; k++) {
+                int i = vis[k];
+                int lv = ep->toc[i].level;
+                char *dst = lbl[k]; int o = 0;
+                for (int d = 1; d < lv && o < 12; d++) { dst[o++]=' '; dst[o++]=' '; }
+                if (toc_has_children(ep, i)) dst[o++] = expanded[i] ? '-' : '+';
+                else dst[o++] = ' ';
+                dst[o++] = ' ';
+                snprintf(dst + o, sizeof(lbl[0]) - (size_t)o, "%s", ep->toc[i].label);
+                items[k] = (menu_item_t){dst, "", 1};
+            }
+            ui_draw_menu(ui,"目录 [A展开/跳转 →入 ←出]",items,n,toc_sel);
+        } else if (st == ST_BMLIST) {
+            static char blbl[MAX_BM][64];
+            menu_item_t items[MAX_BM + 1];
+            if (n_bm == 0) {
+                items[0] = (menu_item_t){"(无书签, 阅读中按 X 添加)","",0};
+                ui_draw_menu(ui,"书签",items,1,0);
+            } else {
+                for (int i=0;i<n_bm;i++) {
+                    snprintf(blbl[i], sizeof(blbl[0]), "书签%d  第%d章 第%d页", i+1, bms[i].sp+1, bms[i].pg+1);
+                    items[i]=(menu_item_t){blbl[i],"",1};
+                }
+                if (bm_sel >= n_bm) bm_sel = n_bm - 1;
+                ui_draw_menu(ui,"书签 [A跳转 X删除]",items,n_bm,bm_sel);
+            }
         } else if (st == ST_MENU) {
+            char bmv[16]; snprintf(bmv,sizeof(bmv),"%d",n_bm);
             menu_item_t items[8]; int mn=0;
             items[mn++]=(menu_item_t){"目录","",1};
-            items[mn++]=(menu_item_t){"文字颜色",fg_labels[cfg->fg_index],1};
+            items[mn++]=(menu_item_t){"书签",bmv,1};
+            items[mn++]=(menu_item_t){"正文颜色",fg_labels[cfg->fg_index],1};
             items[mn++]=(menu_item_t){"字号",font_labels[cfg->font_index],1};
             items[mn++]=(menu_item_t){"亮度",bright_labels[cfg->bright_index],1};
-            items[mn++]=(menu_item_t){"阅读模式","敬请期待",0};
-            if (has_bm) items[mn++]=(menu_item_t){"跳到书签","",1};
             items[mn++]=(menu_item_t){"退出App","自动书签",1};
             ui_draw_menu(ui,"菜单",items,mn,menu_sel);
         } else if (st == ST_COLOR) {
             menu_item_t items[5];
             for (int i=0;i<5;i++) items[i]=(menu_item_t){fg_labels[i], i==cfg->fg_index?"●":"",1};
-            ui_draw_menu(ui,"文字颜色",items,5,sub_sel);
+            ui_draw_menu(ui,"正文颜色 (仅正文, 标题不变)",items,5,sub_sel);
         } else if (st == ST_FONTSZ) {
             menu_item_t items[4];
             for (int i=0;i<4;i++) items[i]=(menu_item_t){font_labels[i], i==cfg->font_index?"●":"",1};
@@ -412,10 +496,14 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
         enum Action act = event_to_action(&ev);
         if (act == A_NONE) continue;
 
-        /* 强制退出（L1/L2 + START）：任意界面生效，退出时自动加书签 */
+        /* 强制退出（L1/L2 + START）：任意界面生效，直接退出整个 App，自动加书签 */
         if (act == A_QUIT_FORCE) {
-            save_bookmark(book, r.spine_idx, r.page);
-            has_bm = 1;
+            if (bm_find(bms, n_bm, r.spine_idx, r.page) < 0 && n_bm < MAX_BM) {
+                bms[n_bm].sp = r.spine_idx; bms[n_bm].pg = r.page; n_bm++;
+                save_bookmarks(book, bms, n_bm);
+            }
+            save_progress(book, r.spine_idx, r.page);
+            g_quit_app = 1;
             quit = 1;
             continue;
         }
@@ -423,47 +511,117 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
         if (st == ST_READ) {
             switch (act) {
                 case A_UP:    if (r.page>0){r.page--; save_progress(book,r.spine_idx,r.page);} break;
-                case A_DOWN:  if (r.page<r.total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break;
-                case A_SELECT:if (r.page<r.total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break; /* A=下一页 */
-                case A_LEFT:  if (r.spine_idx>0){open_chapter(ui,&r,r.spine_idx-1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
-                case A_RIGHT: if (r.spine_idx<ep->n_spine-1){open_chapter(ui,&r,r.spine_idx+1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
+                case A_DOWN:  if (r.page<total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break;
+                case A_SELECT:if (r.page<total_pages-1){r.page++; save_progress(book,r.spine_idx,r.page);} break; /* A=下一页 */
+                case A_LEFT:  if (r.spine_idx>0){r.page=0; open_chapter(ui,&r,r.spine_idx-1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
+                case A_RIGHT: if (r.spine_idx<ep->n_spine-1){r.page=0; open_chapter(ui,&r,r.spine_idx+1); r.page=0; save_progress(book,r.spine_idx,r.page);} break;
                 case A_BACK:  quit=1; break;
                 case A_MENU:  st=ST_MENU; menu_sel=0; break;
-                case A_BOOKMARK:
-                    if (has_bm && bm_sp==r.spine_idx && bm_pg==r.page) { save_bookmark(book,-1,0); has_bm=0; }
-                    else { save_bookmark(book,r.spine_idx,r.page); bm_sp=r.spine_idx; bm_pg=r.page; has_bm=1; }
+                case A_BOOKMARK: {
+                    int at = bm_find(bms, n_bm, r.spine_idx, r.page);
+                    if (at >= 0) { /* 已有 → 删除（切换语义） */
+                        for (int i=at;i<n_bm-1;i++) bms[i]=bms[i+1];
+                        n_bm--;
+                    } else if (n_bm < MAX_BM) {
+                        bms[n_bm].sp=r.spine_idx; bms[n_bm].pg=r.page; n_bm++;
+                    }
+                    save_bookmarks(book, bms, n_bm);
                     break;
+                }
                 default: break;
             }
         } else if (st == ST_TOC) {
-            int n = ep->n_toc;
+            int nv = toc_build_visible(ep, expanded, vis, ep->n_toc);
+            if (nv == 0) { st = ST_MENU; continue; }
+            if (toc_sel >= nv) toc_sel = nv - 1;
+            int cur = vis[toc_sel];
             switch (act) {
                 case A_UP:   if (toc_sel>0) toc_sel--; break;
-                case A_DOWN: if (toc_sel<n-1) toc_sel++; break;
-                case A_SELECT: case A_MENU: {
-                    int idx = epub_find_spine(ep, ep->toc[toc_sel].href);
-                    if (idx>=0){ open_chapter(ui,&r,idx); r.page=0; save_progress(book,r.spine_idx,r.page); }
+                case A_DOWN: if (toc_sel<nv-1) toc_sel++; break;
+                case A_SELECT: /* A：父节点=展开/折叠；叶子=跳转 */
+                    if (toc_has_children(ep, cur)) {
+                        if (expanded[cur]) toc_collapse_subtree(ep, expanded, cur);
+                        else expanded[cur] = 1;
+                    } else {
+                        int idx = epub_find_spine(ep, ep->toc[cur].href);
+                        if (idx>=0){ r.page=0; open_chapter(ui,&r,idx); save_progress(book,r.spine_idx,r.page); }
+                        st=ST_READ;
+                    }
+                    break;
+                case A_MENU: { /* Y：无论父子直接跳转 */
+                    int idx = epub_find_spine(ep, ep->toc[cur].href);
+                    if (idx>=0){ r.page=0; open_chapter(ui,&r,idx); save_progress(book,r.spine_idx,r.page); }
                     st=ST_READ; break;
+                }
+                case A_RIGHT: /* →：展开并进入下一级（选中第一个子项） */
+                    if (toc_has_children(ep, cur)) {
+                        expanded[cur] = 1;
+                        int nv2 = toc_build_visible(ep, expanded, vis, ep->n_toc);
+                        for (int k=0;k<nv2;k++) if (vis[k]==cur+1) { toc_sel=k; break; }
+                    }
+                    break;
+                case A_LEFT: { /* ←：折叠当前子树；已折叠/叶子则回到上一级并折叠之 */
+                    if (toc_has_children(ep, cur) && expanded[cur]) {
+                        toc_collapse_subtree(ep, expanded, cur);
+                    } else {
+                        int par = toc_parent(ep, cur);
+                        if (par >= 0) {
+                            toc_collapse_subtree(ep, expanded, par);
+                            int nv2 = toc_build_visible(ep, expanded, vis, ep->n_toc);
+                            for (int k=0;k<nv2;k++) if (vis[k]==par) { toc_sel=k; break; }
+                        }
+                    }
+                    break;
                 }
                 case A_BACK: st=ST_MENU; break;
                 default: break;
             }
+        } else if (st == ST_BMLIST) {
+            switch (act) {
+                case A_UP:   if (bm_sel>0) bm_sel--; break;
+                case A_DOWN: if (bm_sel<n_bm-1) bm_sel++; break;
+                case A_SELECT: case A_MENU:
+                    if (n_bm > 0 && bm_sel < n_bm) {
+                        int tsp=bms[bm_sel].sp, tpg=bms[bm_sel].pg;
+                        if (tsp>=0 && tsp<ep->n_spine) {
+                            r.page = 0; open_chapter(ui,&r,tsp);
+                            r.page = tpg;
+                            if (r.lay && r.page>=r.lay->n_pages) r.page=r.lay->n_pages-1;
+                            if (r.page<0) r.page=0;
+                            save_progress(book,r.spine_idx,r.page);
+                        }
+                        st=ST_READ;
+                    }
+                    break;
+                case A_BOOKMARK: /* X：删除选中书签 */
+                    if (n_bm > 0 && bm_sel < n_bm) {
+                        for (int i=bm_sel;i<n_bm-1;i++) bms[i]=bms[i+1];
+                        n_bm--;
+                        save_bookmarks(book, bms, n_bm);
+                        if (bm_sel >= n_bm && bm_sel > 0) bm_sel--;
+                    }
+                    break;
+                case A_BACK: st=ST_MENU; break;
+                default: break;
+            }
         } else if (st == ST_MENU) {
-            int n = 6 + (has_bm?1:0);
-            int exit_idx = n - 1;
+            int n = 6;
             switch (act) {
                 case A_UP:   if (menu_sel>0) menu_sel--; break;
                 case A_DOWN: if (menu_sel<n-1) menu_sel++; break;
                 case A_SELECT: case A_MENU:
-                    if (menu_sel == exit_idx) { save_bookmark(book, r.spine_idx, r.page); has_bm=1; quit=1; break; }
                     if      (menu_sel==0) { st=ST_TOC; toc_sel=0; }
-                    else if (menu_sel==1) { st=ST_COLOR;  sub_sel=cfg->fg_index; }
-                    else if (menu_sel==2) { st=ST_FONTSZ; sub_sel=cfg->font_index; }
-                    else if (menu_sel==3) { st=ST_BRIGHT; sub_sel=cfg->bright_index; }
-                    else if (menu_sel==4) { st=ST_MODE; }
-                    else if (menu_sel==5 && has_bm) {
-                        if (bm_sp>=0 && bm_sp<ep->n_spine){ open_chapter(ui,&r,bm_sp); r.page=bm_pg; if(r.page>=r.total_pages)r.page=r.total_pages-1; save_progress(book,r.spine_idx,r.page); }
-                        st=ST_READ;
+                    else if (menu_sel==1) { st=ST_BMLIST; bm_sel=0; }
+                    else if (menu_sel==2) { st=ST_COLOR;  sub_sel=cfg->fg_index; }
+                    else if (menu_sel==3) { st=ST_FONTSZ; sub_sel=cfg->font_index; }
+                    else if (menu_sel==4) { st=ST_BRIGHT; sub_sel=cfg->bright_index; }
+                    else if (menu_sel==5) { /* 退出App（整个程序），自动书签 */
+                        if (bm_find(bms, n_bm, r.spine_idx, r.page) < 0 && n_bm < MAX_BM) {
+                            bms[n_bm].sp=r.spine_idx; bms[n_bm].pg=r.page; n_bm++;
+                            save_bookmarks(book, bms, n_bm);
+                        }
+                        save_progress(book, r.spine_idx, r.page);
+                        g_quit_app=1; quit=1;
                     }
                     break;
                 case A_BACK: st=ST_READ; break;
@@ -484,7 +642,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 case A_DOWN: if (sub_sel<3) sub_sel++; break;
                 case A_SELECT: case A_MENU:
                     cfg->font_index=sub_sel; ui_set_font_size(ui,font_sizes[sub_sel]); save_config(cfg);
-                    open_chapter(ui,&r,r.spine_idx); r.page=0; save_progress(book,r.spine_idx,r.page);
+                    r.page=0; open_chapter(ui,&r,r.spine_idx); save_progress(book,r.spine_idx,r.page);
                     st=ST_MENU; break;
                 case A_BACK: st=ST_MENU; break;
                 default: break;
@@ -502,8 +660,10 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             if (act==A_BACK || act==A_MENU) st=ST_MENU;
         }
     }
-    free_lines(&r);
+    free_lay(&r);
     free(r.title);
+    free(expanded);
+    free(vis);
 }
 
 /* ================= 打开 EPUB（带错误屏显 + 诊断） ================= */
@@ -603,6 +763,7 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
                     sprintf(path,"%s/%s",cwd,e->name);
                     open_epub(ui,path,cfg);
                     free(path);
+                    if (g_quit_app) { quit=1; break; } /* 阅读中 L1/L2+START → 直接退 App */
                 }
             }
         }

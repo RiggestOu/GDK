@@ -8,14 +8,18 @@ cd "$(dirname "$0")"
 rm -f ./*.o epubreader
 # ⛔ 必须 -O0！此工具链 gcc 打过 XBurst 补丁，-O1/-O2/-Os 会无条件生成 MXU 私有指令(lxw 等)，
 #    GDK mini 的 CPU 不支持 MXU → 运行即 SIGILL（2026-07-28 定案的闪退真凶）。无 -mno-mxu 开关可关。
-CFLAGS="-O0 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I$SR/usr/include -I$SR/usr/include/SDL"
-for f in main epub zip render util; do
+WEBP_SRC="$HOME/libwebp-src"
+WEBP_LIB="$HOME/libwebp-build/libwebpdecode.a"
+[ -f "$WEBP_LIB" ] || { echo "缺少 libwebpdecode.a，先跑 build_webp.sh"; exit 1; }
+CFLAGS="-O0 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I$SR/usr/include -I$SR/usr/include/SDL -I$WEBP_SRC/src"
+for f in main epub zip render util layout imgdec; do
     echo "CC $f.c"
     "$CC" $CFLAGS -c "$f.c" -o "$f.o"
 done
 echo "LINK epubreader"
 "$CC" -L"$SR/usr/lib" -Wl,-rpath,'$ORIGIN/lib:/media/roms/apps/epubreader/lib' \
-    -o epubreader main.o epub.o zip.o render.o util.o \
-    -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
+    -o epubreader main.o epub.o zip.o render.o util.o layout.o imgdec.o \
+    "$WEBP_LIB" \
+    -lSDL -lSDL_ttf -lSDL_image -lz -lpthread -lm
 ls -la epubreader
 echo BUILD_OK

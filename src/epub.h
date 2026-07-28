@@ -12,6 +12,7 @@ typedef struct {
 typedef struct {
     char *label;       /* 目录显示名 */
     char *href;        /* 目标（可能含 #fragment，相对 OPF 目录） */
+    int   level;       /* 层级：1=一级目录, 2=二级, ... */
 } toc_entry_t;
 
 typedef struct {
@@ -36,6 +37,13 @@ char *epub_resolve(epub_t *e, const char *href);
 /* 取出某个内容文档的纯文本（strip_tags + decode），返回 malloc 字符串（需 free）。
    href 可带 #fragment，会被忽略。 */
 char *epub_read_text(epub_t *e, const char *href);
+
+/* 读取原始 XHTML（不剥标签，排版引擎用），返回 malloc（需 free），失败 NULL */
+char *epub_read_html(epub_t *e, const char *href);
+
+/* 读取任意资源（图片等），返回 malloc 缓冲区与大小，失败 NULL */
+#include <stddef.h>
+unsigned char *epub_read_file(epub_t *e, const char *href, size_t *out_sz);
 
 /* 在 spine 中查找与给定 href（路径部分）匹配的章节索引，找不到返回 -1 */
 int epub_find_spine(epub_t *e, const char *href);

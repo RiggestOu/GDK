@@ -12,6 +12,8 @@
 typedef struct {
     SDL_Surface *screen;
     TTF_Font    *font;
+    TTF_Font    *font_h1;       /* 标题字体（大） */
+    TTF_Font    *font_h2;       /* 标题字体（中） */
     char        *font_path;     /* 用于按字号重开字体 */
     int  font_size;             /* 当前字号 */
     int  fg_r, fg_g, fg_b;      /* 文字（前景）色 */
@@ -47,7 +49,15 @@ void ui_set_brightness(reader_ui_t *ui, int pct);
 
 /* 把文本按屏幕宽度折行，返回行指针数组与行数（需 free 每行及数组） */
 char **wrap_text(reader_ui_t *ui, const char *text, int *out_n);
+/* 通用折行：指定字体与最大宽度 */
+char **wrap_text_font(TTF_Font *font, const char *text, int maxw, int *out_n);
 int ui_lines_per_page(reader_ui_t *ui);
+
+/* 按样式取字体：style 0=正文 1=h1 2=h2 3=h3 4=引用；*bold 输出是否加粗 */
+TTF_Font *ui_style_font(reader_ui_t *ui, int style, int *bold);
+/* 指定字体/加粗绘制一行文本 */
+void ui_text_font(reader_ui_t *ui, TTF_Font *f, int bold, int x, int y,
+                  const char *text, int r, int g, int b);
 
 /* 绘制：浏览器 */
 void ui_draw_browser(reader_ui_t *ui, const char *cwd,
