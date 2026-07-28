@@ -85,9 +85,31 @@ static int wait_event_timeout(SDL_Event *ev, Uint32 timeout_ms) {
 /* 记录当前按下的手柄键（位掩码），用于组合键判定 */
 static int g_btn_down = 0;
 
+/* 键盘事件版组合键状态（GDK mini 实机把手柄键发成键盘事件）：
+   L1=TAB  L2=PAGEUP  R1=BACKSPACE  R2=PAGEDOWN  START=RETURN */
+#define KMOD_L1    (1 << 0)
+#define KMOD_L2    (1 << 1)
+#define KMOD_START (1 << 2)
+static int g_key_down = 0;
+
 /* 把 SDL 事件转成 Action：joystick 按钮 0/1/2/3 = A/B/X/Y，HAT=方向；键盘 keymap 兼容 */
 static enum Action event_to_action(const SDL_Event *ev) {
-    if (ev->type == SDL_KEYDOWN) return key_to_action(ev->key.keysym.sym);
+    if (ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) {
+        int sym  = (int)ev->key.keysym.sym;
+        int down = (ev->type == SDL_KEYDOWN);
+        int bit  = 0;
+        if (sym == SDLK_TAB)         bit = KMOD_L1;    /* L1 */
+        else if (sym == SDLK_PAGEUP) bit = KMOD_L2;    /* L2（有的固件 L2=PageUp） */
+        else if (sym == SDLK_RETURN) bit = KMOD_START; /* START */
+        if (bit) { if (down) g_key_down |= bit; else g_key_down &= ~bit; }
+        if (!down) return A_NONE;
+        /* 组合键：L1+START 与 L2+START 功能一致 = 强制退出（自动书签） */
+        if (sym == SDLK_RETURN && (g_key_down & (KMOD_L1 | KMOD_L2)))
+            return A_QUIT_FORCE;
+        if ((sym == SDLK_TAB || sym == SDLK_PAGEUP) && (g_key_down & KMOD_START))
+            return A_QUIT_FORCE;
+        return key_to_action(sym);
+    }
     if (ev->type == SDL_JOYBUTTONDOWN || ev->type == SDL_JOYBUTTONUP) {
         int b = ev->jbutton.button;
         int down = (ev->type == SDL_JOYBUTTONDOWN);
@@ -517,8 +539,9 @@ static void open_epub(reader_ui_t *ui, const char *path, cfg_t *cfg) {
 
 /* ================= 浏览器主循环 ================= */
 static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
-    g_btn_down = 0;
-    const char *candidate_roots[] = {"/media/roms","/media/sdcard","/mnt/sd","/media",".",NULL};
+    g_btn_down = 0; g_key_down = 0;
+    /* 默认打开目录：优先 /media/sdcard/Ebook（用户书库），逐级回退 */
+    const char *candidate_roots[] = {"/media/sdcard/Ebook","/media/roms/Ebook","/media/sdcard","/media/roms","/mnt/sd","/media",".",NULL};
     char *cwd = NULL;
     for (int i=0; candidate_roots[i]; i++) {
         struct stat st;

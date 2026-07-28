@@ -244,16 +244,25 @@ epub_t *epub_open(zip_t *z) {
     size_t sz = 0;
     unsigned char *cont = zip_read(z, "META-INF/container.xml", &sz);
     if (!cont) { fprintf(stderr, "[epub] META-INF/container.xml 读取失败\n"); epub_close(e); return NULL; }
-    /* <rootfile> 是自闭合标签，属性在标签内，需从标签本身取 full-path */
-    const char *rp = stristr((const char *)cont, "<rootfile");
+    /* <rootfile> 是自闭合标签，属性在标签内，需从标签本身取 full-path。
+       ⚠ 标准 container.xml 里有父标签 <rootfiles>，与 <rootfile 前缀相同，
+       stristr("<rootfile") 会先撞上它导致取不到 full-path → 必须逐个匹配并
+       校验标签名后一个字符（空白 / '>' / '/' 才是真的 <rootfile>）。 */
+    const char *scan = (const char *)cont;
     char *opf = NULL;
-    if (rp) {
+    for (;;) {
+        const char *rp = stristr(scan, "<rootfile");
+        if (!rp) break;
+        char nc = rp[9]; /* strlen("<rootfile")==9，看紧跟的字符 */
+        if (nc == 's' || nc == 'S') { scan = rp + 9; continue; } /* 是 <rootfiles>，跳过 */
         const char *gt = strchr(rp, '>');
         if (gt) {
             char *tag = strndup_(rp, (size_t)(gt - rp + 1));
             opf = get_attr(tag, "full-path");
             free(tag);
         }
+        if (opf) break;
+        scan = rp + 9; /* 该 <rootfile> 没取到属性，继续找下一个 */
     }
     if (!opf) { fprintf(stderr, "[epub] rootfile full-path 未找到\n"); free(cont); epub_close(e); return NULL; }
     e->opf_path = strdup(opf);
