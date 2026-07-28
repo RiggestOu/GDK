@@ -497,9 +497,12 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
     if (!cwd) cwd = strdup("/");
 
     int quit=0;
+    int diag_first = 1;
     while (!quit) {
         nav_list_t list={0};
+        if (diag_first) { fprintf(stderr,"[diag] build_list(%s)... ", cwd); fflush(stderr); }
         build_list(cwd,&list);
+        if (diag_first) { fprintf(stderr,"OK n=%d\n", list.n); fflush(stderr); diag_first = 0; }
         if (list.n == 0) {
             int ew=1;
             while (ew) {
@@ -569,8 +572,12 @@ int main(int argc, char **argv) {
     }
     reader_ui_t *ui = ui_init(font);
     if (!ui) { fprintf(stderr,"SDL/TTF 初始化失败 (缺少字体或显示设备)\n"); return 1; }
+    fprintf(stderr,"[diag] ui_init 完成\n"); fflush(stderr);
 
-    cfg_t cfg; load_config(&cfg); apply_config(ui,&cfg);
+    cfg_t cfg; load_config(&cfg);
+    fprintf(stderr,"[diag] load_config 完成\n"); fflush(stderr);
+    apply_config(ui,&cfg);
+    fprintf(stderr,"[diag] apply_config 完成\n"); fflush(stderr);
 
     if (direct_file) {
         zip_t *z = zip_open(direct_file);
@@ -582,6 +589,7 @@ int main(int argc, char **argv) {
         ui_quit(ui); return 0;
     }
 
+    fprintf(stderr,"[diag] 进入 run_browser\n"); fflush(stderr);
     run_browser(ui, &cfg);
     ui_quit(ui);
     return 0;

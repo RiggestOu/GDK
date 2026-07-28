@@ -80,7 +80,9 @@ reader_ui_t *ui_init(const char *font_path) {
     ui->brightness  = 100;
     ui->accent_r = 90; ui->accent_g = 160; ui->accent_b = 240;
     ui->margin  = 6;
+    fprintf(stderr,"[diag] TTF_FontHeight... "); fflush(stderr);
     ui->line_h  = TTF_FontHeight(ui->font) + 2;
+    fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
     ui->title_h = TITLE_H;
     ui->status_h = STATUS_H;
     return ui;
@@ -111,7 +113,10 @@ void ui_text_rgb(reader_ui_t *ui, int x, int y, const char *text, int r, int g, 
     if (!text || !*text) return;
     int rr = r, gg = g, bb = b; dim(ui->brightness, &rr, &gg, &bb);
     SDL_Color fg = { (Uint8)rr, (Uint8)gg, (Uint8)bb, 255 };
+    static int first_render = 1;
+    if (first_render) { fprintf(stderr,"[diag] 首次 TTF_RenderUTF8_Solid(\"%.20s\")... ", text); fflush(stderr); }
     SDL_Surface *s = TTF_RenderUTF8_Solid(ui->font, text, fg);
+    if (first_render) { fprintf(stderr,"%s\n", s ? "OK" : "FAIL"); fflush(stderr); first_render = 0; }
     if (!s) return;
     SDL_Rect dst = { x, y, 0, 0 };
     SDL_BlitSurface(s, NULL, ui->screen, &dst);
