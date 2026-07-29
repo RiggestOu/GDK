@@ -27,16 +27,14 @@ static unsigned long utf8_cp(const char *p) {
 /* 字体候选：优先系统 CJK 字体（用户要求用系统默认字体），bundled font.ttf 仅作兜底。
    顺序即加载优先级；首个能成功打开的即被采用，并记入 run.log 的 [diag] 日志。 */
 static const char *try_fonts[] = {
-    "/usr/share/fonts/opendingux/default.ttf",   /* OpenDingux 系统默认字体(通常含中文) */
+    "./system.ttf",                                 /* 用户从设备系统拷出的字体副本(完全移除自定义font.ttf) */
+    "/usr/share/fonts/opendingux/default.ttf",      /* OpenDingux 系统默认字体(通常含中文) */
     "/usr/share/fonts/default.ttf",
     "/usr/share/fonts/truetype/wenquanyi/wqy-microhei.ttc",
     "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/TTF/wqy-microhei.ttf",
     "/usr/share/fonts/truetype/wqy-zenhei/wqy-zenhei.ttc",
     "/usr/share/fonts/droid/DroidSansFallback.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  /* 纯拉丁，会被下方CJK检查跳过 */
-    "./font.ttf",
-    "font.ttf",  /* bundled 兜底：含中文，保证不死 */
     NULL
 };
 
