@@ -24,17 +24,15 @@ static unsigned long utf8_cp(const char *p) {
     return cp;
 }
 
-/* 字体候选：优先系统 CJK 字体（用户要求用系统默认字体），bundled font.ttf 仅作兜底。
-   顺序即加载优先级；首个能成功打开的即被采用，并记入 run.log 的 [diag] 日志。 */
+/* 字体候选：彻底移除自定义 font.ttf，只用设备系统字体。
+   顺序即加载优先级；首个能成功打开且含中文(通过下方CJK闸门)的即被采用，并记入 run.log 的 [diag] 日志。
+   首选 /usr/share/fonts/SourceHanSans-Regular-04.ttf(思源黑体，已验证含CJK)——设备 /usr/share/fonts 下唯一含中文的字体。
+   ./system.ttf 为可选覆盖项(若用户想放本地副本到部署目录)；其余系统路径仅作留底。 */
 static const char *try_fonts[] = {
-    "./system.ttf",                                 /* 用户从设备系统拷出的字体副本(完全移除自定义font.ttf) */
-    "/usr/share/fonts/opendingux/default.ttf",      /* OpenDingux 系统默认字体(通常含中文) */
+    "/usr/share/fonts/SourceHanSans-Regular-04.ttf",   /* 设备系统默认中文字体(思源黑体) — 主用 */
+    "./system.ttf",                                   /* 可选：用户若想用本地副本可放此文件到部署目录 */
     "/usr/share/fonts/default.ttf",
-    "/usr/share/fonts/truetype/wenquanyi/wqy-microhei.ttc",
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-    "/usr/share/fonts/TTF/wqy-microhei.ttf",
-    "/usr/share/fonts/truetype/wqy-zenhei/wqy-zenhei.ttc",
-    "/usr/share/fonts/droid/DroidSansFallback.ttf",
+    "/usr/share/fonts/opendingux/default.ttf",
     NULL
 };
 
@@ -109,7 +107,7 @@ reader_ui_t *ui_init(const char *font_path) {
 
 /* 标题字体懒加载（h1=正文+7，h2=正文+4） */
 static void open_heading_fonts(reader_ui_t *ui) {
-    const char *p = ui->font_path ? ui->font_path : "font.ttf";
+    const char *p = ui->font_path ? ui->font_path : "/usr/share/fonts/SourceHanSans-Regular-04.ttf";
     if (!ui->font_h1) ui->font_h1 = TTF_OpenFont(p, ui->font_size + 7);
     if (!ui->font_h2) ui->font_h2 = TTF_OpenFont(p, ui->font_size + 4);
 }
@@ -180,12 +178,12 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     fprintf(stderr,"[diag] set_font_size 入口 size=%d ui=%p\n", size, (void*)ui); fflush(stderr);
     if (size < 10) size = 10;
     if (size > 28) size = 28;
-    const char *p = ui->font_path ? ui->font_path : "font.ttf";
+    const char *p = ui->font_path ? ui->font_path : "/usr/share/fonts/SourceHanSans-Regular-04.ttf";
     /* 若字号相同则无需重开字体（也规避二次 OpenFont 触发的崩溃） */
     if (ui->font && size == ui->font_size) { fprintf(stderr,"[diag] set_font_size(%d) 同字号跳过\n", size); fflush(stderr); return; }
     fprintf(stderr,"[diag] set_font_size: OpenFont(%s,%d)... ", p, size); fflush(stderr);
     TTF_Font *f = TTF_OpenFont(p, size);
-    if (!f) f = TTF_OpenFont("font.ttf", size);
+    if (!f) f = TTF_OpenFont("/usr/share/fonts/SourceHanSans-Regular-04.ttf", size);
     fprintf(stderr,"%s\n", f ? "OK" : "FAIL"); fflush(stderr);
     if (!f) return;
     fprintf(stderr,"[diag] set_font_size: CloseFont 旧字体... "); fflush(stderr);
