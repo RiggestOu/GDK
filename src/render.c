@@ -27,15 +27,16 @@ static unsigned long utf8_cp(const char *p) {
 /* 字体候选：优先系统 CJK 字体（用户要求用系统默认字体），bundled font.ttf 仅作兜底。
    顺序即加载优先级；首个能成功打开的即被采用，并记入 run.log 的 [diag] 日志。 */
 static const char *try_fonts[] = {
+    "/usr/share/fonts/opendingux/default.ttf",   /* OpenDingux 系统默认字体(通常含中文) */
+    "/usr/share/fonts/default.ttf",
     "/usr/share/fonts/truetype/wenquanyi/wqy-microhei.ttc",
     "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/TTF/wqy-microhei.ttf",
     "/usr/share/fonts/truetype/wqy-zenhei/wqy-zenhei.ttc",
-    "/usr/share/fonts/opendingux/default.ttf",
-    "/usr/share/fonts/default.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/droid/DroidSansFallback.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  /* 纯拉丁，会被下方CJK检查跳过 */
     "./font.ttf",
-    "font.ttf",
+    "font.ttf",  /* bundled 兜底：含中文，保证不死 */
     NULL
 };
 
@@ -72,13 +73,24 @@ reader_ui_t *ui_init(const char *font_path) {
     ui->font = NULL; ui->font_path = NULL;
     const char *fp = font_path;
     int i = 0;
-    while (!ui->font && (fp || try_fonts[i])) {
+    while ((fp || try_fonts[i])) {
         const char *p = fp ? fp : try_fonts[i];
-        fprintf(stderr,"[diag] TTF_OpenFont(%s,%d)... ", p, 14);
-        ui->font = TTF_OpenFont(p, 14);
-        fprintf(stderr,"%s\n", ui->font ? "OK" : "FAIL");
-        if (ui->font) { ui->font_path = strdup(p); break; }
-        fp = NULL; i++;
+        fprintf(stderr,"[diag] TTF_OpenFont(%s)... ", p);
+        TTF_Font *f = TTF_OpenFont(p, 14);
+        if (f) {
+            /* 中文可用性闸门：测试'中'(U+4E2D)，不含中文的字体(如DejaVuSans)跳过，避免方块 */
+            if (TTF_GlyphIsProvided(f, 0x4E2D)) {
+                ui->font = f; ui->font_path = strdup(p);
+                fprintf(stderr,"OK(含CJK)\n");
+                break;
+            } else {
+                fprintf(stderr,"SKIP(不含中文)\n");
+                TTF_CloseFont(f);
+            }
+        } else {
+            fprintf(stderr,"FAIL(%s)\n", TTF_GetError());
+        }
+        if (fp) fp = NULL; else i++;
     }
     if (!ui->font) { fprintf(stderr,"[diag] ALL fonts failed\n"); free(ui); if (g_joy) SDL_JoystickClose(g_joy); TTF_Quit(); SDL_Quit(); return NULL; }
     fprintf(stderr,"[diag] 采用字体路径: %s\n", ui->font_path ? ui->font_path : "(null)");
