@@ -425,10 +425,20 @@ static void open_chapter(reader_ui_t *ui, reading_t *r, int idx) {
     if (idx<0 || idx>=r->ep->n_spine) return;
     r->spine_idx = idx;
     r->lay = get_layout(ui, r->ep, idx);
-    if (idx + 1 < r->ep->n_spine) get_layout(ui, r->ep, idx + 1);  /* 预排版下一章，加速跨章翻页 */
     r->page = 0;
     if (r->page >= r->lay->n_pages) r->page = r->lay->n_pages - 1;
     if (r->page < 0) r->page = 0;
+}
+
+/* 在边界页（首页/末页）预取相邻章，使 ←/→ 跨章翻页即时。
+   开销只在用户停留于边界页时触发一次，不阻塞翻页操作本身。 */
+static void prefetch_neighbors(reader_ui_t *ui, reading_t *r) {
+    if (!r->lay) return;
+    int tp = r->lay->n_pages;
+    if (r->page >= tp - 1 && r->spine_idx + 1 < r->ep->n_spine)
+        get_layout(ui, r->ep, r->spine_idx + 1);  /* 末页：预取下一章 */
+    if (r->page <= 0 && r->spine_idx > 0)
+        get_layout(ui, r->ep, r->spine_idx - 1);  /* 首页：预取上一章 */
 }
 
 /* ---------- 目录树辅助 ----------
@@ -729,6 +739,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 }
                 default: break;
             }
+            if (st == ST_READ) prefetch_neighbors(ui, &r);  /* 边界页预取相邻章，跨章翻页即时 */
         } else if (st == ST_PICVIEW) {
             if (act == A_PIC) {                 /* 退出缩放，回阅读页 */
                 st = ST_READ;

@@ -24,11 +24,18 @@ static unsigned long utf8_cp(const char *p) {
     return cp;
 }
 
+/* 字体候选：优先系统 CJK 字体（用户要求用系统默认字体），bundled font.ttf 仅作兜底。
+   顺序即加载优先级；首个能成功打开的即被采用，并记入 run.log 的 [diag] 日志。 */
 static const char *try_fonts[] = {
+    "/usr/share/fonts/truetype/wenquanyi/wqy-microhei.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "/usr/share/fonts/TTF/wqy-microhei.ttf",
+    "/usr/share/fonts/truetype/wqy-zenhei/wqy-zenhei.ttc",
+    "/usr/share/fonts/opendingux/default.ttf",
+    "/usr/share/fonts/default.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "./font.ttf",
     "font.ttf",
-    "/usr/share/fonts/truetype/wenquanyi/wqy-microhei.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     NULL
 };
 
@@ -74,6 +81,7 @@ reader_ui_t *ui_init(const char *font_path) {
         fp = NULL; i++;
     }
     if (!ui->font) { fprintf(stderr,"[diag] ALL fonts failed\n"); free(ui); if (g_joy) SDL_JoystickClose(g_joy); TTF_Quit(); SDL_Quit(); return NULL; }
+    fprintf(stderr,"[diag] 采用字体路径: %s\n", ui->font_path ? ui->font_path : "(null)");
 
     ui->font_size   = 14;
     ui->fg_r = 235; ui->fg_g = 235; ui->fg_b = 235;
