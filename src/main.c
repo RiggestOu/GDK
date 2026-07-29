@@ -393,14 +393,40 @@ typedef struct {
 static void free_lay(reading_t *r) {
     if (r->lay) { layout_free(r->lay); r->lay = NULL; }
 }
+/* 章节排版结果缓存：跨章翻页命中缓存避免重新排版（首排仍慢，之后衔接与章节内翻页同速）。
+   g_lay_cache 为文件级全局，每次进入 read_book 时先释放旧书残留再使用。 */
+#define LAY_CACHE_N 4
+typedef struct { int spine; layout_t *lay; } lay_cache_t;
+static lay_cache_t g_lay_cache[LAY_CACHE_N];
+
+/* 取某章排版结果：命中缓存直接返回，否则排版并缓存（缓存满则淘汰最旧项） */
+static layout_t *get_layout(reader_ui_t *ui, epub_t *ep, int idx) {
+    for (int i = 0; i < LAY_CACHE_N; i++)
+        if (g_lay_cache[i].lay && g_lay_cache[i].spine == idx) return g_lay_cache[i].lay;
+    char *html = epub_read_html(ep, ep->spine[idx]);
+    if (!html) html = strdup("<p>(空章节)</p>");
+    layout_t *L = layout_chapter(ui, ep, html, ep->spine[idx]);
+    free(html);
+    int slot = -1;
+    for (int i = 0; i < LAY_CACHE_N; i++) if (!g_lay_cache[i].lay) { slot = i; break; }
+    if (slot < 0) { layout_free(g_lay_cache[0].lay); slot = 0; }
+    g_lay_cache[slot].spine = idx;
+    g_lay_cache[slot].lay = L;
+    return L;
+}
+
+/* 清空并释放排版缓存（换书 / 改字号等需重排时调用） */
+static void invalidate_layout_cache(void) {
+    for (int i = 0; i < LAY_CACHE_N; i++)
+        if (g_lay_cache[i].lay) { layout_free(g_lay_cache[i].lay); g_lay_cache[i].lay = NULL; }
+}
+
 static void open_chapter(reader_ui_t *ui, reading_t *r, int idx) {
     if (idx<0 || idx>=r->ep->n_spine) return;
-    free_lay(r);
     r->spine_idx = idx;
-    char *html = epub_read_html(r->ep, r->ep->spine[idx]);
-    if (!html) html = strdup("<p>(空章节)</p>");
-    r->lay = layout_chapter(ui, r->ep, html, r->ep->spine[idx]);
-    free(html);
+    r->lay = get_layout(ui, r->ep, idx);
+    if (idx + 1 < r->ep->n_spine) get_layout(ui, r->ep, idx + 1);  /* 预排版下一章，加速跨章翻页 */
+    r->page = 0;
     if (r->page >= r->lay->n_pages) r->page = r->lay->n_pages - 1;
     if (r->page < 0) r->page = 0;
 }
@@ -505,6 +531,7 @@ static void ui_draw_picview(reader_ui_t *ui, SDL_Surface *disp, int ox, int oy, 
 
 static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg) {
     reading_t r; memset(&r,0,sizeof(r)); r.ep=ep;
+    invalidate_layout_cache();  /* 释放上一本书遗留的排版缓存 */
     g_btn_down = 0; g_key_down = 0; /* 清空按键状态，避免跨文件残留触发组合键 */
     char *nm = strrchr(book,'/'); nm = nm?nm+1:(char*)book;
     r.title = strdup(nm);
@@ -839,6 +866,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 case A_DOWN: if (sub_sel<3) sub_sel++; break;
                 case A_SELECT: case A_MENU:
                     cfg->font_index=sub_sel; ui_set_font_size(ui,font_sizes[sub_sel]); save_config(cfg);
+                    invalidate_layout_cache();  /* 字号变了，旧缓存布局失效，必须重排 */
                     r.page=0; open_chapter(ui,&r,r.spine_idx); save_progress(book,r.spine_idx,r.page);
                     st=ST_MENU; break;
                 case A_BACK: st=ST_MENU; break;
@@ -857,7 +885,8 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             if (act==A_BACK || act==A_MENU) st=ST_MENU;
         }
     }
-    free_lay(&r);
+    invalidate_layout_cache();  /* 含当前章 layout；r->lay 即缓存项之一，统一释放避免 double free */
+    r.lay = NULL;
     free(r.title);
     if (pic_disp) SDL_FreeSurface(pic_disp);
     free(expanded);
