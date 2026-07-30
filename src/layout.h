@@ -22,7 +22,8 @@ void blocks_free(block_t *b, int n);
 /* ---------- 排好版的行（像素级） ---------- */
 typedef struct {
     char        *text;    /* 行文本（NULL 表示图片行/空行） */
-    SDL_Surface *img;     /* 图片行：已缩放好的 surface（由 layout 持有并释放） */
+    SDL_Surface *img;     /* 图片行：已缩放好的 surface（懒解码后由 layout 持有并释放） */
+    char        *img_href;/* 图片行：图片相对路径（延迟解码用，布局时仅记录，绘制当前页时才解码） */
     short x;              /* 绘制 x（对齐已算好） */
     short h;              /* 行高（像素） */
     int   y;              /* 相对文档顶部 y（像素） */
@@ -47,6 +48,8 @@ typedef struct {
     int      page_h;      /* 单页可用高度 */
     pic_ent_t *pics;      /* 本章所有图片（原图）列表 */
     int       n_pics;
+    char     *doc_href;   /* 本章 XHTML 在 zip 内路径（懒解码图片时用） */
+    epub_t   *ep;         /* 所属 epub（懒解码取资源用，不持有） */
 } layout_t;
 
 /* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。
@@ -58,6 +61,6 @@ void layout_free(layout_t *L);
    focus_line>=0 且 focus_label 非空时，在对应图片行画金色高亮框 + 标签。 */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                            const char *title, int pct, int bookmark_on,
-                           int focus_line, const char *focus_label);
+                           int focus_line, int focus_col, const char *focus_label);
 
 #endif /* LAYOUT_H */

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=EPUB Reader v1.1.1
+Comment=EPUB 3.0 reader for GDK mini (SDL 1.2) v1.1.1
+Exec=epubreader
+Icon=epubreader_icon
+Type=Application
+Terminal=false
+Categories=applications;
+X-OD-NeedsJoystick=true
+X-OD-NeedsGSensor=false
+StartupNotify=true

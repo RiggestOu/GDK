@@ -47,9 +47,15 @@ cd "$(dirname "$0")"
 
 IUX_HOME="${IUX_HOME:-/media/roms}"
 
-echo "==> 编译 ..."
-make -f Makefile.gcw0 clean
-make -f Makefile.gcw0
+if command -v make >/dev/null 2>&1; then
+  echo "==> 编译 ..."
+  make -f Makefile.gcw0 clean
+  make -f Makefile.gcw0
+elif [ -x epubreader ]; then
+  echo "==> 无 make（WSL 环境），复用 build_local.sh 已编译的 epubreader"
+else
+  echo "!! 无 make 且无现成 epubreader，请先运行 build_local.sh"; exit 1
+fi
 
 rm -rf pkg && mkdir -p pkg
 # 二进制带 -sdl-1.2 后缀: 避免与「无扩展名元数据文件」在 FAT 上撞名(参考 af-84)
@@ -62,14 +68,9 @@ else
   echo "!! 警告: 未找到 icon.png，启动器可能因缺图标而跳过本 app"
 fi
 
-# CJK 字体：用户需自行提供一个 .ttf 命名为 font.ttf 放在本目录
-if [ -f font.ttf ]; then
-  cp font.ttf pkg/
-  echo "==> 已包含 font.ttf (CJK 字体)"
-else
-  echo "!! 警告: 未找到 font.ttf，阅读器需要一款 CJK TTF 才能显示中文。"
-  echo "   请从网上下载一款开源中文字体(如文泉驿/Noto CJK)并重命名为 font.ttf 放到本目录，再打包。"
-fi
+# 字体：2026-07-29 第六轮起改用设备系统思源黑体
+# (/usr/share/fonts/SourceHanSans-Regular-04.ttf，已验证含 CJK 20910 字)，
+# 不再打包自带 font.ttf（省 9.7MB，且避免自带字体的兼容性问题）。
 
 # 自动打包二进制依赖的动态库（递归），使 app 自包含。
 # 关键点：不仅要打包 epubreader 直接依赖的库，还要递归打包它们的传递依赖

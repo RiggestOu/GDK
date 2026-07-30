@@ -75,4 +75,8 @@ void ui_draw_status(reader_ui_t *ui, const char *left, const char *right);
 /* 绘制：错误屏（msg 支持 \n 多行） */
 void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg);
 
+/* HUD 覆盖层（电量/时间/亮度）：由 main.c 提供数据，绘制在阅读/菜单/浏览器顶部与底部 */
+void ui_set_hud(int batt_pct, const char *clock);
+void ui_draw_hud(reader_ui_t *ui);
+
 #endif /* RENDER_H */

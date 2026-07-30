@@ -4,6 +4,11 @@
 #include <string.h>
 #include <stdio.h>
 
+/* HUD 覆盖层数据（电量/时间由 main.c 提供），在绘制末尾叠加到所有界面 */
+static int g_hud_batt = -1;
+static char g_hud_clock[8] = "--:--";
+static void draw_hud(reader_ui_t *ui);
+
 /* 保存打开的 joystick 句柄：SDL1.2 必须显式打开设备，才会投递 JOYBUTTONDOWN / JOYHATMOTION 事件 */
 static SDL_Joystick *g_joy = NULL;
 
@@ -199,7 +204,7 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
 }
 void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
 void ui_set_brightness(reader_ui_t *ui, int pct) {
-    if (pct < 30) pct = 30;
+    if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
     ui->brightness = pct;
 }
@@ -228,9 +233,13 @@ void ui_draw_browser(reader_ui_t *ui, const char *cwd,
     ui_clear(ui);
     char title[64];
     snprintf(title, sizeof(title), "浏览: %s", cwd ? cwd : "/");
-    draw_title(ui, title);
+    /* 地址栏下移到 HUD 时钟之下，避免遮挡顶部居中时间 */
+    int addr_y = TITLE_H + 2;
+    ui_rect(ui, 0, addr_y - 2, SCREEN_W, ui->line_h, ui->accent_r, ui->accent_g, ui->accent_b);
+    ui_rect(ui, 0, addr_y - 3 + ui->line_h, SCREEN_W, 1, 0, 0, 0);
+    ui_text_rgb(ui, ui->margin, addr_y, title, 255, 255, 255);
 
-    int list_top = TITLE_H + 3;
+    int list_top = addr_y + ui->line_h + 3;
     int list_bottom = SCREEN_H - STATUS_H - 3;
     int avail = list_bottom - list_top;
     int visible = avail / ui->line_h;
@@ -264,6 +273,7 @@ void ui_draw_browser(reader_ui_t *ui, const char *cwd,
     if (can_down) draw_tri_dn(ui, SCREEN_W - 10, list_bottom - 8);
 
     ui_draw_status(ui, "A 打开", "B 返回");
+    draw_hud(ui);
     ui_flip(ui);
 }
 
@@ -297,6 +307,7 @@ void ui_draw_reader(reader_ui_t *ui, char **lines, int n_lines,
     ui_text_rgb(ui, SCREEN_W - ui->margin - 24, py, pbuf, 200, 210, 230);
 
     ui_draw_status(ui, "B 退出", "Y 菜单 X 书签");
+    draw_hud(ui);
     ui_flip(ui);
 }
 
@@ -337,6 +348,7 @@ void ui_draw_menu(reader_ui_t *ui, const char *title,
     if (first > 0)           draw_tri_up(ui, px + pw - 12, py + 4);
     if (first + visible < n) draw_tri_dn(ui, px + pw - 12, py + ph - 8);
     ui_draw_status(ui, "A/Y 选择", "B 返回");
+    draw_hud(ui);
     ui_flip(ui);
 }
 
@@ -352,6 +364,30 @@ void ui_draw_status(reader_ui_t *ui, const char *left, const char *right) {
         ui_text_rgb(ui, SCREEN_W - ui->margin - w, y + 2, right, 200, 210, 230);
     }
 }
+
+/* ---------- HUD 覆盖层（电量 / 时间 / 亮度） ---------- */
+void ui_set_hud(int batt_pct, const char *clock) {
+    g_hud_batt = batt_pct;
+    if (clock) { strncpy(g_hud_clock, clock, 7); g_hud_clock[7] = 0; }
+}
+static void draw_hud(reader_ui_t *ui) {
+    int tw = 0, th = 0;
+    /* 顶部居中：当前时间（24h，时:分） */
+    TTF_SizeUTF8(ui->font, g_hud_clock, &tw, &th);
+    ui_text_rgb(ui, (SCREEN_W - tw) / 2, 3, g_hud_clock, 235, 235, 245);
+    /* 右上角：剩余电量 */
+    char bbuf[16];
+    if (g_hud_batt >= 0) snprintf(bbuf, sizeof(bbuf), "%d%%", g_hud_batt);
+    else snprintf(bbuf, sizeof(bbuf), "?");
+    int bw = 0; TTF_SizeUTF8(ui->font, bbuf, &bw, &th);
+    ui_text_rgb(ui, SCREEN_W - ui->margin - bw, 3, bbuf, 150, 255, 150);
+    /* 底部居中：当前亮度 */
+    char lbuf[16]; snprintf(lbuf, sizeof(lbuf), "亮%d%%", ui->brightness);
+    int lw = 0; TTF_SizeUTF8(ui->font, lbuf, &lw, &th);
+    ui_text_rgb(ui, (SCREEN_W - lw) / 2, SCREEN_H - STATUS_H + 2, lbuf, 200, 210, 230);
+}
+/* 供 layout.c / main.c 跨文件叠加 HUD（内部调用 static draw_hud） */
+void ui_draw_hud(reader_ui_t *ui) { draw_hud(ui); }
 
 /* ---------- 错误屏 ---------- */
 void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
@@ -371,6 +407,7 @@ void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
         p = nl ? nl + 1 : p + strlen(p);
     }
     ui_draw_status(ui, "", "B 返回");
+    draw_hud(ui);
     ui_flip(ui);
 }
 

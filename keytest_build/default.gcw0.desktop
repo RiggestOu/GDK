@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Key Test
+Comment=GDK mini 按键键码测试器
+Exec=launch.sh
+Icon=icon.png
+Type=Application
+Categories=utility;
+X-OD-NeedsJoystick=true
+X-OD-NeedsGSensor=false
+StartupNotify=true
+Terminal=false

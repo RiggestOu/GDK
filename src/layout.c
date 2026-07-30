@@ -206,34 +206,26 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
     for (int i = 0; i < nb; i++) {
         block_t *b = &blocks[i];
         if (b->type == BLK_IMG) {
-            SDL_Surface *img = NULL;
             if (ep && b->img_href) {
-                size_t isz = 0;
-                unsigned char *ibuf = epub_read_file_rel(ep, doc_href, b->img_href, &isz);
-                fprintf(stderr, "[img] src=%s read=%s size=%zu\n", b->img_href, ibuf ? "OK" : "NULL", isz);
-                if (ibuf) {
-                    img = img_decode_scaled(ibuf, isz, maxw_full, L->page_h - 4);
-                    fprintf(stderr, "[img] decode=%s\n", img ? "OK" : "NULL");
-                    free(ibuf);
-                }
-            }
-            if (img) {
-                /* 原图延迟到进入缩放界面时再解码（避免开章时成倍解码拖慢加载），此处仅记录 href */
+                /* 懒解码：排版阶段完全不读/不解图片（这是快速翻章的性能关键），
+                   仅预留整页图片框并记录 href，绘制到该页时才解码并缓存到 r->img。 */
                 if (npic >= cap_pic) { cap_pic = cap_pic ? cap_pic * 2 : 8; picbuf = realloc(picbuf, cap_pic * sizeof(pic_ent_t)); }
                 picbuf[npic].line = rl.n;   /* 即将 push 的行索引 */
                 picbuf[npic].page = -1;
                 picbuf[npic].full = NULL;
-                picbuf[npic].href = b->img_href ? strdup(b->img_href) : NULL;
+                picbuf[npic].href = strdup(b->img_href);
                 npic++;
 
                 y += 4;
                 rline_t *r = rl_push(&rl);
-                r->img = img; r->h = (short)(img->h + 4);
-                r->x = (short)(ui->margin + (maxw_full - img->w) / 2);
+                r->img = NULL;
+                r->img_href = strdup(b->img_href);
+                r->h = (short)(L->page_h - 4);           /* 整页图片框，解码后居中绘制 */
+                r->x = (short)ui->margin;
                 r->y = y;
                 y += r->h;
             } else {
-                /* 解码失败/不支持 → 灰色占位行 */
+                /* 无 epub/无 src → 灰色占位行 */
                 rline_t *r = rl_push(&rl);
                 r->text = strdup("[图片无法显示]");
                 r->style = 4; r->h = (short)ui->line_h;
@@ -333,6 +325,8 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
     }
     L->pics = picbuf;
     L->n_pics = npic;
+    L->doc_href = doc_href ? strdup(doc_href) : NULL;
+    L->ep = ep;
     return L;
 }
 
@@ -340,10 +334,12 @@ void layout_free(layout_t *L) {
     if (!L) return;
     for (int i = 0; i < L->n_lines; i++) {
         free(L->lines[i].text);
+        free(L->lines[i].img_href);
         if (L->lines[i].img) SDL_FreeSurface(L->lines[i].img);
     }
     free(L->lines);
     free(L->page_start);
+    free(L->doc_href);
     if (L->pics) {
         for (int i = 0; i < L->n_pics; i++) {
             if (L->pics[i].full) SDL_FreeSurface(L->pics[i].full);
@@ -357,7 +353,7 @@ void layout_free(layout_t *L) {
 /* ================= 绘制一页 ================= */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                            const char *title, int pct, int bookmark_on,
-                           int focus_line, const char *focus_label) {
+                           int focus_line, int focus_col, const char *focus_label) {
     ui_clear(ui);
     char t[32];
     snprintf(t, sizeof(t), "%.28s", title ? title : "");
@@ -377,18 +373,39 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
         for (int i = start; i < end; i++) {
             rline_t *r = &L->lines[i];
             int dy = body_top + (r->y - page_top);
+            if (r->img_href && !r->img) {
+                /* 懒解码：仅当图片行真正被绘制到当前页时才读 zip + 解码，并缓存进 r->img */
+                size_t isz = 0;
+                unsigned char *ibuf = L->ep ? epub_read_file_rel(L->ep, L->doc_href, r->img_href, &isz) : NULL;
+                if (ibuf) {
+                    r->img = img_decode_scaled(ibuf, isz, SCREEN_W - 2 * ui->margin, L->page_h - 8);
+                    free(ibuf);
+                }
+                if (!r->img) {
+                    /* 解码失败：本行退化为占位文本（下次不再重试） */
+                    free(r->img_href); r->img_href = NULL;
+                    r->text = strdup("[图片无法显示]");
+                    r->style = 4;
+                }
+            }
             if (r->img) {
-                SDL_Rect dst = { r->x, (Sint16)(dy + 2), 0, 0 };
+                /* 图片在预留框内水平+垂直居中 */
+                int fw = SCREEN_W - 2 * ui->margin;
+                int ix = ui->margin + (fw - r->img->w) / 2;
+                int iy = dy + (r->h - r->img->h) / 2;
+                if (ix < ui->margin) ix = ui->margin;
+                if (iy < dy) iy = dy;
+                SDL_Rect dst = { (Sint16)ix, (Sint16)iy, 0, 0 };
                 SDL_BlitSurface(r->img, NULL, ui->screen, &dst);
                 if (i == focus_line && focus_label) {
                     /* 焦点高亮：仅金色边框（不覆盖缩略图）+ 标签 */
-                    int bx = r->x - 2, by = dy + 1, bw = r->img->w + 4, bh = r->img->h + 4, t = 2;
+                    int bx = ix - 2, by = iy - 1, bw = r->img->w + 4, bh = r->img->h + 4, t = 2;
                     ui_rect(ui, bx,           by,            bw, t,     255, 210, 60); /* 上 */
                     ui_rect(ui, bx,           by + bh - t,   bw, t,     255, 210, 60); /* 下 */
                     ui_rect(ui, bx,           by,            t,  bh,    255, 210, 60); /* 左 */
                     ui_rect(ui, bx + bw - t,  by,            t,  bh,    255, 210, 60); /* 右 */
-                    int ly = dy - 12; if (ly < TITLE_H + 1) ly = dy + r->img->h + 4;
-                    ui_text_rgb(ui, r->x, ly, focus_label, 255, 210, 60);
+                    int ly = iy - 12; if (ly < TITLE_H + 1) ly = iy + r->img->h + 4;
+                    ui_text_rgb(ui, ix, ly, focus_label, 255, 210, 60);
                 }
                 continue;
             }
@@ -406,6 +423,28 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
             TTF_Font *f = ui_style_font(ui, (int)r->style, &bold);
             if (r->bold) bold = 1;
             ui_text_font(ui, f, bold, r->x, dy, r->text, cr, cg, cb);
+            if (i == focus_line && focus_label) {
+                if (focus_col >= 0 && r->text) {
+                    /* 列光标：在第 focus_col 个 unichar 处画金色竖线（左右移字可见） */
+                    const unsigned char *p = (const unsigned char *)r->text;
+                    int ci = 0; char sub[64]; size_t so = 0;
+                    while (*p && ci < focus_col) {
+                        int len = 1; if (*p >= 0xF0) len = 4; else if (*p >= 0xE0) len = 3; else if (*p >= 0xC0) len = 2;
+                        if (so + (size_t)len < sizeof(sub)) { for (int k = 0; k < len; k++) sub[so++] = (char)p[k]; }
+                        p += len; ci++;
+                    }
+                    sub[so] = 0;
+                    int cw = 0, ch = 0; TTF_SizeUTF8(f, sub, &cw, &ch);
+                    int cx = r->x + cw;
+                    ui_rect(ui, cx, dy, 2, r->h, 255, 210, 60);
+                } else {
+                    /* 整行高亮（图片焦点或兼容旧逻辑）：行首竖条 + 行底下划线 */
+                    ui_rect(ui, 1, dy, 3, r->h - 2, 255, 210, 60);
+                    ui_rect(ui, r->x, dy + r->h - 2, SCREEN_W - r->x - ui->margin, 1, 255, 210, 60);
+                }
+                int ly = dy - 12; if (ly < TITLE_H + 1) ly = dy + r->h;
+                ui_text_rgb(ui, SCREEN_W - ui->margin - 110, ly, focus_label, 255, 210, 60);
+            }
         }
     }
 
@@ -422,5 +461,6 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
     ui_text_rgb(ui, SCREEN_W - ui->margin - 24, py, pbuf, 200, 210, 230);
 
     ui_draw_status(ui, "B 退出", "Y 菜单 X 书签");
+    ui_draw_hud(ui);
     ui_flip(ui);
 }
