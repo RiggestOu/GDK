@@ -14,6 +14,7 @@
 #include <fcntl.h>    /* evdev 直读：open O_NONBLOCK */
 #include <sys/ioctl.h>   /* evdev 直读：ioctl EVIOCGNAME */
 #include <linux/input.h> /* evdev 直读：struct input_event / EVIOCGNAME */
+#include <signal.h>       /* 电源键 SIGHUP 接管：改为息屏而非退出 App */
 
 /* ================= 配置与配色表 ================= */
 typedef struct { int font_index; int fg_index; int bright_pct; } cfg_t;
@@ -405,6 +406,20 @@ static void export_keymap(void) {
 
 /* App 级退出标志：阅读中按 L1/L2+START 也要直接退出整个 App（不是退回浏览器） */
 static int g_quit_app = 0;
+/* 电源键接管：系统固件在电源键时向本进程发 SIGHUP（KeyTest 实测 exit 129=128+SIGHUP），
+   默认行为会终止进程=退出 App。此处捕获后仅置标志，由主循环调 app_suspend 改为息屏，
+   不再退出 App。长按电源键由内核/PMIC 强制关机，应用层拦不住，故安全。 */
+static volatile sig_atomic_t g_power_pending = 0;
+static void on_power_signal(int sig) { (void)sig; g_power_pending = 1; }
+/* 圆3 快捷键说明浮层开关（main.c 镜像 render.c 的 s_km_overlay，toggle 时同步） */
+static int g_km_overlay = 0;
+static int g_km_oy = 0, g_km_ox = 0;   /* 浮层内容平移偏移（字号放大看不全时十字键滚动） */
+static int g_km_content_h = 240;       /* 浮层内容总高，绘制时更新，供 clamp 用 */
+#define KM_CLAMP() do { \
+    int mn = (g_km_content_h > SCREEN_H) ? (SCREEN_H - g_km_content_h) : 0; \
+    if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+    if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+} while (0)
 
 /* 把 SDL 事件转成 Action。2026-07-29 KeyTest 权威定案：
    - A/B/X/Y/L1/R1/START/SELECT -> SDL_JOYBUTTON(b1/b0/b2/b3/b6/b7/b5/b4)，并伴随无信息 KEYDOWN sym=0（wait 已丢弃）
@@ -413,6 +428,36 @@ static int g_quit_app = 0;
    - 圆3/圆4 -> 纯键盘(sym 279/278)
    肩键(手柄 L1/R1)与 L2/R2(键盘)来自不同源，修饰键状态合并 g_mod 才能正确判定组合键。 */
 static enum Action event_to_action(const SDL_Event *ev) {
+    /* 电源键息屏：SIGHUP 异步置 g_power_pending。在此阶段即吞掉一切输入，
+       避免电源键同批次/残留的其它按键（如翻页）被处理，做到「息屏不翻页」，与 START 一致。 */
+    if (g_power_pending) return A_NONE;
+    /* 圆3 浮层模态拦截：开启时拦截所有输入做平移/关闭，不触发底层功能；
+       关闭由下方圆3(down)键盘分支处理，开启由 279 分支与 L1+Y 组合处理。 */
+    if (g_km_overlay) {
+        if (ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) {
+            int sym = (int)ev->key.keysym.sym;
+            int down = (ev->type == SDL_KEYDOWN);
+            if (down && sym == 279) { g_km_overlay = 0; g_km_oy = 0; g_km_ox = 0; ui_set_km_overlay(0); return A_NONE; }
+            return A_NONE;  /* 浮层开启时其它键盘键无效 */
+        }
+        if (ev->type == SDL_JOYBUTTONDOWN || ev->type == SDL_JOYBUTTONUP) {
+            if (ev->type == SDL_JOYBUTTONUP) return A_NONE;
+            int b = ev->jbutton.button;
+            /* L1+Y：浮层开启时再按一次关闭（供无圆3机器关闭） */
+            if (b == BTN_Y && (g_mod & M_L1)) { g_km_overlay = 0; g_km_oy = 0; g_km_ox = 0; ui_set_km_overlay(0); return A_NONE; }
+            if (b == BTN_L1 || b == BTN_R1) { g_km_oy -= 20; KM_CLAMP(); }  /* 肩键上下平移 */
+            return A_NONE;
+        }
+        if (ev->type == SDL_JOYHATMOTION) {
+            if (ev->jhat.value & SDL_HAT_UP)         { g_km_oy += 20; KM_CLAMP(); }
+            else if (ev->jhat.value & SDL_HAT_DOWN)  { g_km_oy -= 20; KM_CLAMP(); }
+            else if (ev->jhat.value & SDL_HAT_LEFT)  { g_km_ox += 20; KM_CLAMP(); }
+            else if (ev->jhat.value & SDL_HAT_RIGHT) { g_km_ox -= 20; KM_CLAMP(); }
+            else return A_NONE;  /* 居中无方向 */
+            return A_NONE;
+        }
+        return A_NONE;
+    }
     if (ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP) {
         int sym  = (int)ev->key.keysym.sym;
         int down = (ev->type == SDL_KEYDOWN);
@@ -438,6 +483,9 @@ static enum Action event_to_action(const SDL_Event *ev) {
             }
         }
         if (!down) return A_NONE;
+        /* 圆3 (sym 279)：切换快捷键说明半透明浮层（再按一次关闭），跨所有界面生效，
+           内容动态读取 g_bind_*，反映用户自定义改绑后的实际按键 */
+        if (sym == 279) { g_km_overlay = 1; g_km_oy = 0; g_km_ox = 0; ui_set_km_overlay(1); return A_NONE; }
         /* 捕获绑定态：任何按下（含修饰键/音量键）都冒泡到主循环做绑定，不触发原功能 */
         if (g_capture) { g_shoulder_combo = 1; return A_BINDCAP; }
         /* 音量键：调亮度（GDK mini 实测 音量+=270 KP_PLUS / 音量-=269 KP_MINUS）。
@@ -492,7 +540,10 @@ static enum Action event_to_action(const SDL_Event *ev) {
                 int held = g_mod_joy & jm;  /* 该位确为手柄源持有才算一次有效抬起 */
                 g_mod_joy &= ~jm;
                 g_jbtn &= ~(1 << b);
-                if (held && !g_mod && !g_shoulder_combo) {
+                /* 仅肩键 L1/R1 抬起走绑定表触发单按动作；START 息屏由 DOWN 硬逻辑触发，
+                   其抬起禁止再映射 A_START，否则唤醒屏幕的「抬起」会立即再次息屏，
+                   表现为「退出息屏需按两次 START」。 */
+                if (held && !g_mod && !g_shoulder_combo && (b == BTN_L1 || b == BTN_R1)) {
                     enum Action a = remap_phys(1, b, 0);   /* L1/R1 单按 → 走绑定表（可改绑） */
                     if (a != A_NONE) return a;
                 }
@@ -504,6 +555,11 @@ static enum Action event_to_action(const SDL_Event *ev) {
         g_jbtn |= (1 << b);
         /* 捕获绑定态：任何按下（含修饰键）都冒泡到主循环做绑定，不触发原功能 */
         if (g_capture) { g_shoulder_combo = 1; return A_BINDCAP; }
+        /* L1+Y：开启/关闭快捷键说明浮层（替代圆3，供无圆3键机器使用）。
+           仅在浮层未开时生效（已开时由上方 g_km_overlay 拦截块吞掉 Y，不会重复触发）。 */
+        if (!g_km_overlay && down && b == BTN_Y && (g_mod & M_L1)) {
+            g_km_overlay = 1; g_km_oy = 0; g_km_ox = 0; ui_set_km_overlay(1); return A_NONE;
+        }
         /* 铁定兜底：L1+START / L2+START 立即退出App；R1+R2 立即图片缩放。
            放在捕获态之后（保证「自定义快捷键」改绑时仍能被捕获），但早于任何其它逻辑，
            确保无论处于哪个界面、无论此前状态如何，组合键都绝不会被吞掉。 */
@@ -556,6 +612,62 @@ static enum Action event_to_action(const SDL_Event *ev) {
         if (ev->jhat.value & SDL_HAT_RIGHT) return A_RIGHT;
     }
     return A_NONE;
+}
+
+/* 圆3 半透明快捷键说明浮层：动态读取 g_bind_*，反映用户自定义改绑后的实际按键。
+   绘制在任意界面之上（ui_flip 钩子调用），不阻断输入，圆3 再按一次关闭。 */
+void ui_keymap_overlay_draw(reader_ui_t *ui) {
+    int fs = (ui->font_size > 0) ? ui->font_size : 12;
+    int lh = fs;                       /* 行距=正文字号，随放大同步，避免重叠 */
+    int cw = fs;
+    int subx = 6 + 2 * cw;             /* 子项缩进：空两个中文字符 */
+    int ox = g_km_ox, oy = g_km_oy;
+    /* 半透明遮罩（全屏，alpha≈67%）：叠加在阅读/菜单/浏览器等任意界面之上 */
+    SDL_Surface *ov = SDL_CreateRGBSurface(SDL_SRCALPHA, SCREEN_W, SCREEN_H, 32,
+        0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    if (ov) {
+        SDL_FillRect(ov, NULL, SDL_MapRGBA(ov->format, 8, 10, 16, 170));
+        SDL_BlitSurface(ov, NULL, ui->screen, NULL);
+        SDL_FreeSurface(ov);
+    }
+    int y = 4 + oy;
+    ui_text_rgb(ui, 6 + ox, y, "快捷键说明 (L1+Y/圆3 关闭 · 方向键平移)", 255, 220, 80);
+    y += lh + 4;
+    /* 动态绑定列表：顺序对应 bind_names，bind_label() 实时输出当前按键（含用户改绑） */
+    int ids[] = { BIND_NEXT, BIND_PREV, BIND_OPEN, BIND_BACK, BIND_MENU,
+                  BIND_BM, BIND_TOC, BIND_SUSPEND, BIND_PIC, BIND_QUITAPP };
+    char line[160];
+    for (int k = 0; k < 10; k++) {
+        snprintf(line, sizeof line, "%s: %s", bind_names[ids[k]], bind_label(ids[k]));
+        ui_text_rgb(ui, 6 + ox, y, line, 222, 228, 238);
+        y += lh;
+    }
+    /* 亮度三档：按修饰键分组，读取实际步进 g_bind_step[]，反映改绑后的按键与百分比 */
+    char bbuf[160]; bbuf[0] = 0; strcat(bbuf, "亮度: ");
+    char seg[48];
+    for (int bi = 0; bi < 3; bi++) {
+        int id = (bi==0)?BIND_BRIGHT_BIG:(bi==1)?BIND_BRIGHT_MED:BIND_BRIGHT_SMALL;
+        int m = 0; for (int s = 0; s < BIND_SLOTS; s++) m |= g_bind_mod[id][s];
+        const char *key = (m&M_L1)?"L1+音量":(m&M_L2)?"L2+音量":(m&M_R1)?"R1+音量":(m&M_R2)?"R2+音量":"音量";
+        snprintf(seg, sizeof seg, "%s ±%d%%  ", key, g_bind_step[id]);
+        strncat(bbuf, seg, sizeof(bbuf) - strlen(bbuf) - 1);
+    }
+    ui_text_rgb(ui, 6 + ox, y, bbuf, 222, 228, 238); y += lh;
+    /* 进入缩放界面后：各百分比 + 平移（动态读取 g_bind_step[BIND_PIC_*]） */
+    ui_text_rgb(ui, 6 + ox, y, "进入缩放界面后：", 200, 215, 235); y += lh;
+    ui_text_rgb(ui, subx + ox, y, "按住肩键(L1/R1)再按方向键: 放大/缩小", 190, 205, 225); y += lh;
+    snprintf(line, sizeof line, "→/A 放大%d%%   ←/Y 缩小%d%%",
+             g_bind_step[BIND_PIC_RIGHT], -g_bind_step[BIND_PIC_LEFT]);
+    ui_text_rgb(ui, subx + ox, y, line, 190, 205, 225); y += lh;
+    snprintf(line, sizeof line, "↑/X 放大%d%%   ↓/B 缩小%d%%",
+             g_bind_step[BIND_PIC_UP], -g_bind_step[BIND_PIC_DOWN]);
+    ui_text_rgb(ui, subx + ox, y, line, 190, 205, 225); y += lh;
+    ui_text_rgb(ui, subx + ox, y, "不按肩键: 方向键/ABXY 平移查看大图", 190, 205, 225); y += lh;
+    /* SELECT 与 强制退出（固定别名，不进绑定表，单独列出） */
+    ui_text_rgb(ui, 6 + ox, y, "SELECT: 阅读页呼出书签光标/其它界面返回", 200, 215, 235); y += lh;
+    ui_text_rgb(ui, 6 + ox, y, "L1+START / L2+START: 强制退出(自动保存书签)", 200, 215, 235); y += lh;
+    /* 记录内容总高（不含偏移），供事件端 clamp 平移范围 */
+    g_km_content_h = (y - oy);
 }
 
 /* ================= 运行时环境（SDL fbcon） ================= */
@@ -666,15 +778,16 @@ static void screen_blank(int on) {
         if (f) { fputc(on ? '1' : '0', f); fclose(f); }
     }
 }
-/* 息屏：保存进度后熄屏；除 START 外任意键无效，按 START 恢复画面 */
+/* 息屏：保存进度后熄屏；除 START / 电源键 外任意键无效，按 START 或电源键恢复画面 */
 static void app_suspend(reader_ui_t *ui) {
     screen_blank(1);
     ui_clear(ui);
     ui_text_rgb(ui, ui->margin, SCREEN_H / 2 - 6, "已息屏", 120, 120, 120);
-    ui_text_rgb(ui, ui->margin, SCREEN_H / 2 + 8, "按 START 恢复", 120, 120, 120);
+    ui_text_rgb(ui, ui->margin, SCREEN_H / 2 + 8, "按 START / 电源键 恢复", 120, 120, 120);
     ui_flip(ui);
     SDL_Event ev;
     while (1) {
+        if (g_power_pending) { g_power_pending = 0; break; }  /* 电源键唤醒（信号异步到达，置标志） */
         if (wait_event_timeout(&ev, 400)) {
             int st = 0;
             if (ev.type == SDL_KEYDOWN && ev.key.keysym.sym == SDLK_RETURN) st = 1;
@@ -682,6 +795,9 @@ static void app_suspend(reader_ui_t *ui) {
             if (st) break;   /* 其它键一律忽略 */
         }
     }
+    /* 清空息屏期间/恢复前残留事件，避免恢复瞬间误触发（如翻页），与 START 息屏一致。
+       SDL1.2 未导出 SDL_FlushEvents，用 PollEvent 循环取空队列（SDL1.2 必有）。 */
+    SDL_Event _e; while (SDL_PollEvent(&_e)) { }
     screen_blank(0);
 }
 
@@ -1007,9 +1123,9 @@ typedef enum { ST_READ, ST_TOC, ST_MENU, ST_COLOR, ST_FONTSZ, ST_BRIGHT, ST_MODE
 
 /* ================= 图片缩放/平移查看器 ================= */
 #define PICV_X 0
-#define PICV_Y TITLE_H
+#define PICV_Y ui->title_h
 #define PICV_W SCREEN_W
-#define PICV_H (SCREEN_H - STATUS_H - TITLE_H)
+#define PICV_H (SCREEN_H - ui->status_h - ui->title_h)
 
 /* 进入查看器：按屏宽适配起始缩放，居中显示 */
 static void enter_picview(reader_ui_t *ui, SDL_Surface **disp, int *zoom, int *ox, int *oy, SDL_Surface *full) {
@@ -1048,7 +1164,7 @@ static void zoom_picview(reader_ui_t *ui, SDL_Surface **disp, int *zoom, int *ox
     *zoom = newz;
 }
 /* 限制偏移：图比视口大则偏移范围 [VW-DW, 0]，否则图居中范围 [0, VW-DW] */
-static void clamp_picview(int *ox, int *oy, SDL_Surface *disp) {
+static void clamp_picview(reader_ui_t *ui, int *ox, int *oy, SDL_Surface *disp) {
     if (!disp) return;
     int DW = disp->w, DH = disp->h;
     if (DW <= PICV_W) { if (*ox < 0) *ox = 0; if (*ox > PICV_W - DW) *ox = PICV_W - DW; }
@@ -1058,6 +1174,7 @@ static void clamp_picview(int *ox, int *oy, SDL_Surface *disp) {
 }
 static void ui_draw_picview(reader_ui_t *ui, SDL_Surface *disp, int ox, int oy, int zoom, int idx, int total) {
     ui_clear(ui);
+    ui->status_h = ui_status_height(ui, "L1+L2 退出 L1+方向 缩放");
     ui_rect(ui, 0, 0, SCREEN_W, SCREEN_H, 18, 18, 22);
     if (disp) {
         SDL_Rect dst = { (Sint16)(PICV_X + ox), (Sint16)(PICV_Y + oy), disp->w, disp->h };
@@ -1065,10 +1182,12 @@ static void ui_draw_picview(reader_ui_t *ui, SDL_Surface *disp, int ox, int oy, 
     } else {
         ui_text_rgb(ui, 20, SCREEN_H / 2, "图片无法解码", 220, 80, 80);
     }
-    ui_rect(ui, 0, 0, SCREEN_W, TITLE_H, 255, 210, 60);
+    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 255, 210, 60);
     char t[48]; snprintf(t, sizeof(t), "图片 %d/%d  缩放 %d%%", idx, total, zoom);
-    ui_text_rgb(ui, ui->margin, 3, t, 0, 0, 0);
-    ui_draw_status(ui, "L1+L2 退出", "L1+方向 缩放");
+    int fh = TTF_FontHeight(ui->font);
+    int ty = (ui->title_h - fh) / 2; if (ty < 0) ty = 0;
+    ui_text_rgb(ui, ui->margin, ty, t, 0, 0, 0);
+    ui_draw_status(ui, "L1+L2 退出 L1+方向 缩放", NULL);
     ui_draw_hud(ui);
     ui_flip(ui);
 }
@@ -1113,6 +1232,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
     int pic_zoom = 100;
     int pic_ox = 0, pic_oy = 0;    /* 图在视口内的偏移（屏幕像素，正值=图向右/下移） */
     while (!quit) {
+        if (g_power_pending) { g_power_pending = 0; save_progress(book, r.spine_idx, r.page); app_suspend(ui); continue; }
         int total_pages = r.lay ? r.lay->n_pages : 1;
         int at_bm = bm_find(bms, n_bm, r.spine_idx, r.page) >= 0;
         /* 本页图片列表（仅当前页） */
@@ -1152,13 +1272,13 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 snprintf(dst + o, sizeof(lbl[0]) - (size_t)o, "%s", ep->toc[i].label);
                 items[k] = (menu_item_t){dst, "", 1};
             }
-            ui_draw_menu(ui,"目录 [A展开/跳转 →入 ←出]",items,n,toc_sel);
+            ui_draw_menu(ui,"目录 [A展开/跳转 →入 ←出]",items,n,toc_sel,0);
         } else if (st == ST_BMLIST) {
             static char blbl[MAX_BM][96];
             menu_item_t items[MAX_BM + 1];
             if (n_bm == 0) {
                 items[0] = (menu_item_t){"(无书签, 阅读中按 X 添加)","",0};
-                ui_draw_menu(ui,"书签",items,1,0);
+                ui_draw_menu(ui,"书签",items,1,0,0);
             } else {
                 for (int i=0;i<n_bm;i++) {
                     /* 2026-07-29 用户定案：显示正文摘录（10 字），不再写第几章第几页 */
@@ -1166,7 +1286,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                     items[i]=(menu_item_t){blbl[i],"",1};
                 }
                 if (bm_sel >= n_bm) bm_sel = n_bm - 1;
-                ui_draw_menu(ui,"书签 [A跳转 X删除]",items,n_bm,bm_sel);
+                ui_draw_menu(ui,"书签 [A跳转 X删除]",items,n_bm,bm_sel,0);
             }
         } else if (st == ST_MENU) {
             char bmv[16]; snprintf(bmv,sizeof(bmv),"%d",n_bm);
@@ -1180,24 +1300,24 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             items[mn++]=(menu_item_t){"退出App","自动书签",1};
             items[mn++]=(menu_item_t){"自定义快捷键","",1};
             items[mn++]=(menu_item_t){"返回书架","",1};
-            ui_draw_menu(ui,"菜单",items,mn,menu_sel);
+            ui_draw_menu(ui,"菜单",items,mn,menu_sel,0);
         } else if (st == ST_COLOR) {
             menu_item_t items[5];
             for (int i=0;i<5;i++) items[i]=(menu_item_t){fg_labels[i], i==cfg->fg_index?"●":"",1};
-            ui_draw_menu(ui,"正文颜色 (仅正文, 标题不变)",items,5,sub_sel);
+            ui_draw_menu(ui,"正文颜色 (仅正文, 标题不变)",items,5,sub_sel,0);
         } else if (st == ST_FONTSZ) {
             menu_item_t items[4];
             for (int i=0;i<4;i++) items[i]=(menu_item_t){font_labels[i], i==cfg->font_index?"●":"",1};
-            ui_draw_menu(ui,"字号",items,4,sub_sel);
+            ui_draw_menu(ui,"字号",items,4,sub_sel,0);
         } else if (st == ST_BRIGHT) {
             static char bv[16]; snprintf(bv,sizeof bv,"当前 %d%%", cfg->bright_pct);
             menu_item_t items[5];
             for (int i=0;i<5;i++) items[i]=(menu_item_t){bright_labels[i], (cfg->bright_pct/20)==i?"●":"",1};
             items[0] = (menu_item_t){"↑/↓ 调亮度", bv, 1};
-            ui_draw_menu(ui,"亮度 (↑+5% ↓-5%)",items,5,sub_sel);
+            ui_draw_menu(ui,"亮度 (↑+5% ↓-5%)",items,5,sub_sel,0);
         } else if (st == ST_MODE) {
             menu_item_t items[1] = {{"阅读模式: 敬请期待","",0}};
-            ui_draw_menu(ui,"阅读模式",items,1,0);
+            ui_draw_menu(ui,"阅读模式",items,1,0,0);
         } else if (st == ST_KEYMAP) {
             static char kbuf[NUM_BIND+2][64];
             menu_item_t kitems[NUM_BIND+2];
@@ -1210,14 +1330,14 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             kitems[NUM_BIND]   = (menu_item_t){"导出配置","",1};
             kitems[NUM_BIND+1] = (menu_item_t){"导入配置","",1};
             char ttl[96]; snprintf(ttl,sizeof ttl,"自定义[←→选槽 A重绑 SEL复位] 槽%d/%d %s", km_slot+1, BIND_SLOTS, km_msg);
-            ui_draw_menu(ui, ttl, kitems, km_n, km_sel);
+            ui_draw_menu(ui, ttl, kitems, km_n, km_sel, 1);
         } else if (st == ST_IMPORT) {
             static char ibuf[9][40];
             menu_item_t iitems[9];
             int in = imp_n>0 ? imp_n : 1;
             if (imp_n == 0) iitems[0] = (menu_item_t){"(无可用配置)","",0};
             else for (int i=0;i<imp_n;i++){ snprintf(ibuf[i],sizeof ibuf[i],"epub_reader_%d", imp_list[i]); iitems[i]=(menu_item_t){ibuf[i],"",1}; }
-            ui_draw_menu(ui,"导入配置 [A载入 B返回]", iitems, in, imp_sel);
+            ui_draw_menu(ui,"导入配置 [A载入 B返回]", iitems, in, imp_sel,0);
         }
 
         SDL_Event ev;
@@ -1463,7 +1583,7 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
                 else if (act == bind_action(BIND_PIC_LEFT))  pic_ox += step;  /* 图右 */
                 else if (act == bind_action(BIND_PIC_RIGHT)) pic_ox -= step;  /* 图左 */
             }
-            clamp_picview(&pic_ox, &pic_oy, pic_disp);
+            clamp_picview(ui, &pic_ox, &pic_oy, pic_disp);
             continue;
         } else if (st == ST_TOC) {
             int nv = toc_build_visible(ep, expanded, vis, ep->n_toc);
@@ -1667,6 +1787,7 @@ static void wait_back(reader_ui_t *ui) {
     SDL_Event ev;
     Uint32 start = SDL_GetTicks();
     while (SDL_GetTicks() - start < 8000) {
+        if (g_power_pending) { g_power_pending = 0; app_suspend(ui); }
         if (wait_event_timeout(&ev, 200)) {
             enum Action a = event_to_action(&ev);
             if (a == A_START) { app_suspend(ui); continue; }
@@ -1712,6 +1833,7 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
     int quit=0;
     int diag_first = 1;
     while (!quit) {
+        if (g_power_pending) { g_power_pending = 0; app_suspend(ui); continue; }
         nav_list_t list={0};
         if (diag_first) { fprintf(stderr,"[diag] build_list(%s)... ", cwd); fflush(stderr); }
         build_list(cwd,&list);
@@ -1719,6 +1841,7 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
         if (list.n == 0) {
             int ew=1;
             while (ew) {
+                if (g_power_pending) { g_power_pending = 0; app_suspend(ui); }
                 ui_draw_error(ui,"空目录","该目录没有可显示内容\nB 返回上级");
                 SDL_Event ev;
                 if (!wait_event_timeout(&ev,300)) continue;
@@ -1743,7 +1866,8 @@ static void run_browser(reader_ui_t *ui, cfg_t *cfg) {
         }
         int sel=0;
         while (1) {
-            int visible = (SCREEN_H - TITLE_H - STATUS_H - 6) / ui->line_h;
+            if (g_power_pending) { g_power_pending = 0; app_suspend(ui); continue; }
+            int visible = (SCREEN_H - ui->title_h - ui->status_h - 6) / ui->line_h;
             if (visible<1) visible=1;
             int first = sel - visible/2; if (first<0) first=0;
             if (first+visible > list.n) first = list.n - visible; if (first<0) first=0;
@@ -1827,8 +1951,8 @@ int main(int argc, char **argv) {
         /* 写入规范链接文件（与 sdl-palmsk 同格式：icon= 绝对路径 PNG） */
         FILE *lf = fopen(epath, "w");
         if (lf) {
-            fputs("title=EPUB\xE9\x98\x85\xE8\xAF\xBB\xE5\x99\xA8\n"
-                  "description=EPUB 3.0 reader v1.1.1\n"
+            fputs("title=Epub阅读器\n"
+                  "description=EPUB 3.0 reader v1.1.2\n"
                   "icon=/media/roms/apps/EPUBReader/epubreader_icon.png\n"
                   "exec=/usr/bin/opkrun\n"
                   "params=-m default.gcw0.desktop \"/media/roms/apps/EPUBReader/EPUBReader.opk\"\n"
@@ -1859,6 +1983,7 @@ int main(int argc, char **argv) {
     fprintf(stderr,"[diag] load_config 完成\n"); fflush(stderr);
     apply_config(ui,&cfg);
     fprintf(stderr,"[diag] apply_config 完成\n"); fflush(stderr);
+    signal(SIGHUP, on_power_signal);  /* 电源键接管：改为息屏（不再退出 App），长按仍由系统关机 */
 
     if (direct_file) {
         zip_t *z = zip_open(direct_file);

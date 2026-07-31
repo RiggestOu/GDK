@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=EPUB Reader v1.1.1
-Comment=EPUB 3.0 reader for GDK mini (MIPS/uClibc/SDL1.2) v1.1.1
+Name=Epub阅读器
+Comment=EPUB 3.0 reader for GDK mini (MIPS/uClibc/SDL1.2) v1.1.2
 Exec=launch.sh
 Icon=icon
 Type=Application

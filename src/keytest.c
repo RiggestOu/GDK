@@ -5,7 +5,7 @@
  * 日志输出到 stderr（由 launch.sh 重定向到 /media/roms/apps/KeyTest.log）。
  *
  * 操作：屏幕提示「请按 XX」，按下并松开该键即自动进入下一个；
- *       全部完成（或任意时刻按 电源 以外的组合无法退出时）自动退出。
+ *       全部完成（含电源键）后显示「测试完成」并 3 秒自动退出。
  *       每个键最多等 15 秒，超时自动跳过（防某键坏死卡住）。
  * 编译：与 epubreader 相同工具链，⛔必须 -O0（MXU 铁律）。
  * ============================================================ */
@@ -140,6 +140,7 @@ int main(void) {
         "START", "SELECT", "音量 +", "音量 -",
         "圆1 (左侧 1个圆点)", "圆2 (左侧 2个圆点)",
         "圆3 (START上方 左)", "圆4 (START上方 右)",
+        "电源键",
     };
     const int NK = (int)(sizeof(keys) / sizeof(keys[0]));
 
@@ -149,7 +150,10 @@ int main(void) {
         snprintf(tag, sizeof tag, "<%s>", keys[k]);
         fprintf(stderr, "\n[PROMPT] ===== %d/%d %s =====\n", k + 1, NK, keys[k]);
         fflush(stderr);
-        draw_center(scr, font, l1, "按下并松开该键", "15 秒无操作自动跳过");
+        /* 电源键若为系统接管（息屏/关机），应用层抓不到属正常，超时自动跳过 */
+        const char *l3 = "15 秒无操作自动跳过";
+        if (k == NK - 1) l3 = "若设备息屏/关机属正常,无事件则跳过";
+        draw_center(scr, font, l1, "按下并松开该键", l3);
 
         /* 丢弃上一个键的残余事件 */
         SDL_Event ev;

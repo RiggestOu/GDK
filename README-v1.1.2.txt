@@ -1,7 +1,7 @@
 EPUB Reader for GDK mini —— 交付说明
 =====================================
 
-版本：v1.1.1（对外固定版本号；除非用户主动要求，不再变更）
+版本：v1.1.2（对外固定版本号；除非用户主动要求，不再变更）
 
 构建环境：Ingenic JZ47xx (XBurst MIPS) / OpenDingux / uClibc
 图形栈：SDL 1.2（帧缓冲 fbcon）
@@ -10,10 +10,10 @@ MXU 校验：scan_mxu.py 扫描 .text 段，lxw = 0 条，干净。
 
 本包内容：
   EPUBReader.opk           —— OPK 安装包（squashfs，含 epubreader 二进制 + launch.sh + icon.png + default.gcw0.desktop）
-  default.gcw0.desktop     —— 桌面项元数据（Name=EPUB Reader v1.1.1）
+  default.gcw0.desktop     —— 桌面项元数据（Name=EPUB Reader v1.1.2）
   icon.png                 —— 64x64 应用图标
   launch.sh                —— OPK 内启动脚本（设 SDL 环境变量、自动注册到 Esoteric 菜单）
-  VERSION                  —— 版本真值（v1.1.1）
+  VERSION                  —— 版本真值（v1.1.2）
 
 安装方式（任选其一）：
   A. 将 EPUBReader.opk 拷贝到 SD 卡（设备 /media/roms/apps/），在 Esoteric 中打开即自动注册到「应用程序」。

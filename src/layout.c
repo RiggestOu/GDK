@@ -191,7 +191,7 @@ static rline_t *rl_push(rlist_t *L) {
 
 layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href) {
     layout_t *L = calloc(1, sizeof(layout_t));
-    L->page_h = SCREEN_H - TITLE_H - STATUS_H - PROG_H - 6;
+    L->page_h = SCREEN_H - ui->title_h - ui->status_h - PROG_H - 6;
 
     int nb = 0;
     block_t *blocks = html_to_blocks(html, &nb);
@@ -357,13 +357,17 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
     ui_clear(ui);
     char t[32];
     snprintf(t, sizeof(t), "%.28s", title ? title : "");
-    /* 标题栏 */
-    ui_rect(ui, 0, 0, SCREEN_W, TITLE_H, ui->accent_r, ui->accent_g, ui->accent_b);
-    ui_rect(ui, 0, TITLE_H - 1, SCREEN_W, 1, 0, 0, 0);
-    ui_text_rgb(ui, ui->margin, 3, t, 255, 255, 255);
-    if (bookmark_on) ui_text_rgb(ui, SCREEN_W - ui->margin - 12, 3, "★", 255, 220, 80);
+    /* 底部状态区高度：按本界面脚注实际折行行数精确计算（大字号自动长高，脚注完整在屏内） */
+    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
+    /* 标题栏（蓝条随字号长高，文字垂直居中） */
+    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, ui->accent_r, ui->accent_g, ui->accent_b);
+    ui_rect(ui, 0, ui->title_h - 1, SCREEN_W, 1, 0, 0, 0);
+    int fh = TTF_FontHeight(ui->font);
+    int ty = (ui->title_h - fh) / 2; if (ty < 0) ty = 0;
+    ui_text_rgb(ui, ui->margin, ty, t, 255, 255, 255);
+    ui_set_hud_bookmark(bookmark_on);
 
-    int body_top = TITLE_H + 3;
+    int body_top = ui->title_h + 3;
     if (L && L->n_pages > 0) {
         if (page < 0) page = 0;
         if (page >= L->n_pages) page = L->n_pages - 1;
@@ -404,7 +408,7 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                     ui_rect(ui, bx,           by + bh - t,   bw, t,     255, 210, 60); /* 下 */
                     ui_rect(ui, bx,           by,            t,  bh,    255, 210, 60); /* 左 */
                     ui_rect(ui, bx + bw - t,  by,            t,  bh,    255, 210, 60); /* 右 */
-                    int ly = iy - 12; if (ly < TITLE_H + 1) ly = iy + r->img->h + 4;
+                    int ly = iy - 12; if (ly < ui->title_h + 1) ly = iy + r->img->h + 4;
                     ui_text_rgb(ui, ix, ly, focus_label, 255, 210, 60);
                 }
                 continue;
@@ -442,14 +446,15 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                     ui_rect(ui, 1, dy, 3, r->h - 2, 255, 210, 60);
                     ui_rect(ui, r->x, dy + r->h - 2, SCREEN_W - r->x - ui->margin, 1, 255, 210, 60);
                 }
-                int ly = dy - 12; if (ly < TITLE_H + 1) ly = dy + r->h;
+                int ly = dy - 12; if (ly < ui->title_h + 1) ly = dy + r->h;
                 ui_text_rgb(ui, SCREEN_W - ui->margin - 110, ly, focus_label, 255, 210, 60);
             }
         }
     }
 
-    /* 进度条 */
-    int py = SCREEN_H - STATUS_H - PROG_H - 1;
+    /* 进度条（紧贴状态区上方） */
+    int st = SCREEN_H - ui->status_h;
+    int py = st - PROG_H - 1;
     ui_rect(ui, 0, py - 1, SCREEN_W, 1, 0, 0, 0);
     int bar_w = SCREEN_W - 2 * ui->margin - 28;
     ui_rect(ui, ui->margin, py, bar_w, PROG_H, 40, 42, 50);
@@ -460,7 +465,7 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
     snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
     ui_text_rgb(ui, SCREEN_W - ui->margin - 24, py, pbuf, 200, 210, 230);
 
-    ui_draw_status(ui, "B 退出", "Y 菜单 X 书签");
+    ui_draw_status(ui, "L1+Y或圆3 查看按键说明", NULL);
     ui_draw_hud(ui);
     ui_flip(ui);
 }

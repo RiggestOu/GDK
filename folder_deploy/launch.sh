@@ -1,5 +1,5 @@
 #!/bin/sh
-# EPUB Reader 启动脚本
+# Epub阅读器 启动脚本
 # ★ 2026-07-30 图标问题最终定案（读设备 rootfs + esoteric 源码实证）：
 #   本机菜单（Esoteric/350teric fork）条目 = sections 目录下的链接文件（title=/icon=/exec= 格式），
 #   图标显示 = 链接文件 icon= 指向的绝对路径 PNG（与 sdl-palmsk 的
@@ -41,7 +41,7 @@ if [ -d "$SEC_DIR" ]; then
     done
     # 2) 写入规范链接文件（与 sdl-palmsk 同格式：icon= 绝对路径 PNG）
     if [ -d "$SEC_DIR/applications" ] && \
-       printf 'title=EPUB阅读器\ndescription=EPUB 3.0 reader v1.1.1\nicon=/media/roms/apps/EPUBReader/epubreader_icon.png\nexec=/usr/bin/opkrun\nparams=-m default.gcw0.desktop "/media/roms/apps/EPUBReader/EPUBReader.opk"\nconsoleapp=false\nselectorbrowser=false\n' > "$LINK_FILE" 2>/dev/null; then
+       printf 'title=Epub阅读器\ndescription=EPUB 3.0 reader v1.1.2\nicon=/media/roms/apps/EPUBReader/epubreader_icon.png\nexec=/usr/bin/opkrun\nparams=-m default.gcw0.desktop "/media/roms/apps/EPUBReader/EPUBReader.opk"\nconsoleapp=false\nselectorbrowser=false\n' > "$LINK_FILE" 2>/dev/null; then
         echo "  [reg] 已写入 $LINK_FILE:"
         sed 's/^/    /' "$LINK_FILE"
     else
@@ -50,7 +50,7 @@ if [ -d "$SEC_DIR" ]; then
     sync
     echo "  [hint] 注册已写入 $LINK_FILE（活目录，esoteric 实际读取处）"
     echo "  [hint] 必须【重启设备】(断电重启或退出 Esoteric 回 shell 再启动)，菜单才会重新读取 sections 并显示图标"
-    echo "  [hint] 重启后请在菜单最右侧【apps】分区找到“EPUB阅读器”条目"
+    echo "  [hint] 重启后请在菜单最右侧【apps】分区找到“Epub阅读器”条目"
 else
     echo "  [reg] $SEC_DIR 不存在，跳过"
 fi

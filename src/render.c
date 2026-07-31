@@ -7,7 +7,11 @@
 /* HUD 覆盖层数据（电量/时间由 main.c 提供），在绘制末尾叠加到所有界面 */
 static int g_hud_batt = -1;
 static char g_hud_clock[8] = "--:--";
+static int g_hud_bookmark = 0;     /* 当前页/章是否已加书签（决定是否画★） */
 static void draw_hud(reader_ui_t *ui);
+
+/* 设置书签星状态（阅读页绘制时调用，决定是否在底部簇显示★） */
+void ui_set_hud_bookmark(int on) { g_hud_bookmark = on ? 1 : 0; }
 
 /* 保存打开的 joystick 句柄：SDL1.2 必须显式打开设备，才会投递 JOYBUTTONDOWN / JOYHATMOTION 事件 */
 static SDL_Joystick *g_joy = NULL;
@@ -52,6 +56,22 @@ static void dim(int f, int *r, int *g, int *bl) {
     *r = *r * f / 100;
     *g = *g * f / 100;
     *bl = *bl * f / 100;
+}
+
+/* HUD 行像素高度（跟随正文字号 + 上下各 1px 余量）。
+   与脚注同字号，保证底部 HUD 行与脚注行清晰两行分离，且一起随字号缩放。 */
+static int hud_lh(reader_ui_t *ui) {
+    int h = TTF_FontHeight(ui->font);
+    return h + 2;
+}
+/* 底部状态区顶端 y（状态区高度 = ui->status_h，紧贴屏幕底部） */
+static int status_top(reader_ui_t *ui) {
+    return SCREEN_H - ui->status_h;
+}
+/* 底部是否分两行：仅“特大”(font_size>=22) 才两行（左脚注在上、右 HUD 在下）；
+   其它字号（小/中/大）底部只占单行（脚注与 HUD 同行）。 */
+static int bottom_two_lines(reader_ui_t *ui) {
+    return ui->font_size >= 22;
 }
 
 /* ---------- 初始化 / 释放 ---------- */
@@ -105,8 +125,13 @@ reader_ui_t *ui_init(const char *font_path) {
     fprintf(stderr,"[diag] TTF_FontHeight... "); fflush(stderr);
     ui->line_h  = TTF_FontHeight(ui->font) + 2;
     fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
-    ui->title_h = TITLE_H;
-    ui->status_h = STATUS_H;
+    /* HUD 簇专用小号字体：固定 12px，不随正文字号放大，保证底部信息始终紧凑不溢出 */
+    ui->font_hud = TTF_OpenFont(ui->font_path ? ui->font_path : "/usr/share/fonts/SourceHanSans-Regular-04.ttf", 12);
+    fprintf(stderr,"[diag] font_hud %s\n", ui->font_hud ? "OK" : "FAIL");
+    /* 标题/状态栏高度随正文字号动态计算（否则大字号时文字溢出蓝色背景/超出屏幕）；
+       状态区按阅读页最长脚注（可能折 2 行）估算，保证分页 page_h 与绘制时一致。 */
+    ui->title_h  = TTF_FontHeight(ui->font) + 6;
+    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
     return ui;
 }
 
@@ -142,6 +167,7 @@ void ui_quit(reader_ui_t *ui) {
     if (!ui) return;
     if (ui->font_h1) TTF_CloseFont(ui->font_h1);
     if (ui->font_h2) TTF_CloseFont(ui->font_h2);
+    if (ui->font_hud) TTF_CloseFont(ui->font_hud);
     if (ui->font) TTF_CloseFont(ui->font);
     if (ui->font_path) free(ui->font_path);
     if (g_joy) { SDL_JoystickClose(g_joy); g_joy = NULL; }
@@ -154,7 +180,14 @@ void ui_quit(reader_ui_t *ui) {
 void ui_clear(reader_ui_t *ui) {
     SDL_FillRect(ui->screen, NULL, SDL_MapRGB(ui->screen->format, ui->bg_r, ui->bg_g, ui->bg_b));
 }
-void ui_flip(reader_ui_t *ui) { SDL_Flip(ui->screen); }
+/* 圆3 快捷键说明浮层开关（main.c 维护镜像标志 g_km_overlay 并调 ui_set_km_overlay 同步） */
+static int s_km_overlay = 0;
+void ui_set_km_overlay(int on) { s_km_overlay = on; }
+void ui_flip(reader_ui_t *ui) {
+    extern void ui_keymap_overlay_draw(reader_ui_t *ui);
+    if (s_km_overlay) ui_keymap_overlay_draw(ui);
+    SDL_Flip(ui->screen);
+}
 
 void ui_rect(reader_ui_t *ui, int x, int y, int w, int h, int r, int g, int b) {
     int rr = r, gg = g, bb = b; dim(ui->brightness, &rr, &gg, &bb);
@@ -201,6 +234,10 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     fprintf(stderr,"[diag] set_font_size: FontHeight... "); fflush(stderr);
     ui->line_h = TTF_FontHeight(ui->font) + 2;
     fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
+    /* 标题/状态栏高度随字号动态重算（大字号时蓝条与底部区自动长高，文字不再溢出）；
+       状态区按阅读页最长脚注（可能折 2 行）估算，保证分页 page_h 与绘制时一致。 */
+    ui->title_h  = TTF_FontHeight(ui->font) + 6;
+    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
 }
 void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
 void ui_set_brightness(reader_ui_t *ui, int pct) {
@@ -211,9 +248,12 @@ void ui_set_brightness(reader_ui_t *ui, int pct) {
 
 /* ---------- 小图形 ---------- */
 static void draw_title(reader_ui_t *ui, const char *title) {
-    ui_rect(ui, 0, 0, SCREEN_W, TITLE_H, ui->accent_r, ui->accent_g, ui->accent_b);
-    ui_rect(ui, 0, TITLE_H - 1, SCREEN_W, 1, 0, 0, 0);
-    ui_text_rgb(ui, ui->margin, 3, title, 255, 255, 255);
+    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, ui->accent_r, ui->accent_g, ui->accent_b);
+    ui_rect(ui, 0, ui->title_h - 1, SCREEN_W, 1, 0, 0, 0);
+    int fh = TTF_FontHeight(ui->font);
+    int ty = (ui->title_h - fh) / 2;   /* 标题文字在蓝条内垂直居中 */
+    if (ty < 0) ty = 0;
+    ui_text_rgb(ui, ui->margin, ty, title, 255, 255, 255);
 }
 static void draw_tri_up(reader_ui_t *ui, int x, int y) {
     ui_rect(ui, x, y + 4, 7, 2, 200, 200, 200);
@@ -231,16 +271,20 @@ void ui_draw_browser(reader_ui_t *ui, const char *cwd,
                      const nav_ent_t *items, int n, int sel, int first,
                      int can_up, int can_down) {
     ui_clear(ui);
+    ui->status_h = ui_status_height(ui, "A 打开 B 返回");
     char title[64];
     snprintf(title, sizeof(title), "浏览: %s", cwd ? cwd : "/");
-    /* 地址栏下移到 HUD 时钟之下，避免遮挡顶部居中时间 */
-    int addr_y = TITLE_H + 2;
+    /* 地址栏下移到标题栏之下 */
+    int addr_y = ui->title_h + 2;
     ui_rect(ui, 0, addr_y - 2, SCREEN_W, ui->line_h, ui->accent_r, ui->accent_g, ui->accent_b);
     ui_rect(ui, 0, addr_y - 3 + ui->line_h, SCREEN_W, 1, 0, 0, 0);
-    ui_text_rgb(ui, ui->margin, addr_y, title, 255, 255, 255);
+    int fh = TTF_FontHeight(ui->font);
+    int ty = addr_y + (ui->line_h - fh) / 2;
+    if (ty < addr_y) ty = addr_y;
+    ui_text_rgb(ui, ui->margin, ty, title, 255, 255, 255);
 
     int list_top = addr_y + ui->line_h + 3;
-    int list_bottom = SCREEN_H - STATUS_H - 3;
+    int list_bottom = SCREEN_H - ui->status_h - 3;
     int avail = list_bottom - list_top;
     int visible = avail / ui->line_h;
     if (visible < 1) visible = 1;
@@ -272,7 +316,7 @@ void ui_draw_browser(reader_ui_t *ui, const char *cwd,
     if (can_up)   draw_tri_up(ui, SCREEN_W - 10, list_top + 1);
     if (can_down) draw_tri_dn(ui, SCREEN_W - 10, list_bottom - 8);
 
-    ui_draw_status(ui, "A 打开", "B 返回");
+    ui_draw_status(ui, "A 打开 B 返回", NULL);
     draw_hud(ui);
     ui_flip(ui);
 }
@@ -285,17 +329,17 @@ void ui_draw_reader(reader_ui_t *ui, char **lines, int n_lines,
     char t[32];
     snprintf(t, sizeof(t), "%.28s", title ? title : "");
     draw_title(ui, t);
-    if (bookmark_on) ui_text_rgb(ui, SCREEN_W - ui->margin - 12, 3, "★", 255, 220, 80);
+    ui_set_hud_bookmark(bookmark_on);
 
-    int body_top = TITLE_H + 3;
-    int body_bottom = SCREEN_H - STATUS_H - PROG_H - 3;
+    int body_top = ui->title_h + 3;
+    int body_bottom = SCREEN_H - ui->status_h - PROG_H - 3;
     for (int i = 0; i < per_page; i++) {
         int idx = page * per_page + i;
         if (idx >= n_lines) break;
         ui_text(ui, ui->margin, body_top + i * ui->line_h, lines[idx]);
     }
 
-    int py = SCREEN_H - STATUS_H - PROG_H - 1;
+    int py = SCREEN_H - ui->status_h - PROG_H - 1;
     ui_rect(ui, 0, py - 1, SCREEN_W, 1, 0, 0, 0);
     int bar_w = SCREEN_W - 2 * ui->margin - 28;
     ui_rect(ui, ui->margin, py, bar_w, PROG_H, 40, 42, 50);
@@ -306,26 +350,48 @@ void ui_draw_reader(reader_ui_t *ui, char **lines, int n_lines,
     snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
     ui_text_rgb(ui, SCREEN_W - ui->margin - 24, py, pbuf, 200, 210, 230);
 
-    ui_draw_status(ui, "B 退出", "Y 菜单 X 书签");
+    ui_draw_status(ui, "X 书签 Y 菜单 B 退出", NULL);
     draw_hud(ui);
     ui_flip(ui);
 }
 
 /* ---------- 菜单 ---------- */
 void ui_draw_menu(reader_ui_t *ui, const char *title,
-                 const menu_item_t *items, int n, int sel) {
+                 const menu_item_t *items, int n, int sel, int km_title) {
     ui_clear(ui);
+    ui->status_h = ui_status_height(ui, "A/Y 选择 B 返回");
     ui_rect(ui, 0, 0, SCREEN_W, SCREEN_H, 0, 0, 0); /* 暗化遮罩 */
-    int px = 10, py = 22, pw = SCREEN_W - 20, ph = SCREEN_H - 22 - STATUS_H - 6;
+    int px = 10, py = 22, pw = SCREEN_W - 20, ph = SCREEN_H - 22 - ui->status_h - 6;
     ui_rect(ui, px, py, pw, ph, 24, 28, 40);
     ui_rect(ui, px, py, pw, 1, ui->accent_r, ui->accent_g, ui->accent_b);
     ui_rect(ui, px, py, 1, ph, ui->accent_r, ui->accent_g, ui->accent_b);
     ui_rect(ui, px + pw - 1, py, 1, ph, ui->accent_r, ui->accent_g, ui->accent_b);
-    ui_text_rgb(ui, px + 6, py + 3, title, ui->accent_r, ui->accent_g, ui->accent_b);
+    /* 标题区：
+       - 普通菜单：按面板内宽自动折行，高度随行数变化（长标题在 大/特大 自动换行，避免压到列表）。
+       - km_title=1（自定义快捷键菜单）：仅在 大/特大(>=18) 折成两行；小/中 强制单行（即便略超出面板也截断，不折行）。 */
+    int avail = pw - 12;
+    char **tl; int tn;
+    if (km_title && ui->font_size < 18) {
+        tl = malloc(sizeof(char *));
+        tl[0] = strdup(title);
+        tn = 1;
+    } else {
+        tl = wrap_text_font(ui->font, title, avail, &tn);
+        if (tn < 1) tn = 1;
+    }
+    int th = tn * ui->line_h + 8;          /* 标题区高度 = 折行行数*行高 + 上下留白 */
+    int ty0 = py + 4;
+    for (int i = 0; i < tn; i++) {
+        int lw = 0; TTF_SizeUTF8(ui->font, tl[i], &lw, NULL);
+        int tx = px + 6 + ((pw - 12) - lw) / 2;   /* 水平居中 */
+        ui_text_rgb(ui, tx, ty0 + i * ui->line_h, tl[i], ui->accent_r, ui->accent_g, ui->accent_b);
+    }
+    for (int i = 0; i < tn; i++) free(tl[i]);
+    free(tl);
 
-    int ly = py + 16;
+    int ly = py + th + 2;
     /* 滚动：以选中项为中心，超出面板的条目滚动显示 */
-    int visible = (ph - 16) / ui->line_h;
+    int visible = (ph - th - 2) / ui->line_h;
     if (visible < 1) visible = 1;
     int first = 0;
     if (n > visible) {
@@ -347,22 +413,34 @@ void ui_draw_menu(reader_ui_t *ui, const char *title,
     }
     if (first > 0)           draw_tri_up(ui, px + pw - 12, py + 4);
     if (first + visible < n) draw_tri_dn(ui, px + pw - 12, py + ph - 8);
-    ui_draw_status(ui, "A/Y 选择", "B 返回");
+    ui_draw_status(ui, "A/Y 选择 B 返回", NULL);
     draw_hud(ui);
     ui_flip(ui);
 }
 
 /* ---------- 状态栏 ---------- */
+/* 底部状态区布局：
+   - 单行模式（小/中/大）：脚注(left, 左对齐) 与 HUD 簇(★/时间/亮度/电量, 右对齐) 同行。
+   - 两行模式（特大）：脚注在顶行(left)，HUD 簇在底行(right)，左在上、右在下。
+   HUD 簇由 draw_hud 单独绘制，其纵向位置由 bottom_two_lines 决定，与这里一致。 */
 void ui_draw_status(reader_ui_t *ui, const char *left, const char *right) {
-    int y = SCREEN_H - STATUS_H;
-    ui_rect(ui, 0, y, SCREEN_W, STATUS_H, 30, 32, 40);
-    ui_rect(ui, 0, y, SCREEN_W, 1, 0, 0, 0);
-    ui_text_rgb(ui, ui->margin, y + 2, left, 200, 210, 230);
-    if (right) {
-        int w = 0, h = 0;
-        TTF_SizeUTF8(ui->font, right, &w, &h);
-        ui_text_rgb(ui, SCREEN_W - ui->margin - w, y + 2, right, 200, 210, 230);
+    int top = status_top(ui);
+    int h = ui->status_h;
+    ui_rect(ui, 0, top, SCREEN_W, h, 30, 32, 40);
+    ui_rect(ui, 0, top, SCREEN_W, 1, 0, 0, 0);
+
+    /* 脚注(left)：单行模式与 HUD 同行(顶行)；两行模式在顶行（HUD 在底行，见 draw_hud）。 */
+    int fy = top + 2;
+    if (left && *left) {
+        char **wl; int n;
+        wl = wrap_text_font(ui->font, left, SCREEN_W - 2 * ui->margin, &n);
+        for (int i = 0; i < n; i++) {
+            ui_text_rgb(ui, ui->margin, fy + i * ui->line_h, wl[i], 200, 210, 230);
+        }
+        for (int i = 0; i < n; i++) free(wl[i]);
+        free(wl);
     }
+    (void)right; /* right 已不再使用（HUD 簇由 draw_hud 单独绘制） */
 }
 
 /* ---------- HUD 覆盖层（电量 / 时间 / 亮度） ---------- */
@@ -371,20 +449,27 @@ void ui_set_hud(int batt_pct, const char *clock) {
     if (clock) { strncpy(g_hud_clock, clock, 7); g_hud_clock[7] = 0; }
 }
 static void draw_hud(reader_ui_t *ui) {
-    int tw = 0, th = 0;
-    /* 顶部居中：当前时间（24h，时:分） */
-    TTF_SizeUTF8(ui->font, g_hud_clock, &tw, &th);
-    ui_text_rgb(ui, (SCREEN_W - tw) / 2, 3, g_hud_clock, 235, 235, 245);
-    /* 右上角：剩余电量 */
-    char bbuf[16];
-    if (g_hud_batt >= 0) snprintf(bbuf, sizeof(bbuf), "%d%%", g_hud_batt);
-    else snprintf(bbuf, sizeof(bbuf), "?");
-    int bw = 0; TTF_SizeUTF8(ui->font, bbuf, &bw, &th);
-    ui_text_rgb(ui, SCREEN_W - ui->margin - bw, 3, bbuf, 150, 255, 150);
-    /* 底部居中：当前亮度 */
-    char lbuf[16]; snprintf(lbuf, sizeof(lbuf), "亮%d%%", ui->brightness);
-    int lw = 0; TTF_SizeUTF8(ui->font, lbuf, &lw, &th);
-    ui_text_rgb(ui, (SCREEN_W - lw) / 2, SCREEN_H - STATUS_H + 2, lbuf, 200, 210, 230);
+    /* HUD 簇（★/时间/亮度%/电量%）跟随正文字号、右对齐。
+       单行模式（小/中/大）与脚注同行；两行模式（特大）落在底行，使“左在上、右在下”。 */
+    TTF_Font *hf = ui->font;
+    int th = 0;
+    char part[64];
+    if (g_hud_batt >= 0) snprintf(part, sizeof(part), "%s 亮%d%% %d%%", g_hud_clock, ui->brightness, g_hud_batt);
+    else                 snprintf(part, sizeof(part), "%s 亮%d%% ?",   g_hud_clock, ui->brightness);
+    int rw = 0; TTF_SizeUTF8(hf, part, &rw, &th);
+    int sw = 0;
+    if (g_hud_bookmark) { TTF_SizeUTF8(hf, "★", &sw, &th); sw += 4; } /* 星 + 与时间的间隔 */
+    int total = sw + rw;
+    int x = SCREEN_W - ui->margin - total;
+    int y;
+    if (bottom_two_lines(ui)) y = status_top(ui) + ui->line_h + 2;  /* 两行模式：HUD 在底行 */
+    else                      y = status_top(ui) + 1;              /* 单行模式：与脚注同行 */
+    if (y < 0) y = 0;
+    if (g_hud_bookmark) {
+        ui_text_font(ui, hf, 0, x, y, "★", 255, 220, 80);   /* 书签星：金色 */
+        x += sw;
+    }
+    ui_text_font(ui, hf, 0, x, y, part, 200, 210, 230);      /* 时间 / 亮度 / 电量 */
 }
 /* 供 layout.c / main.c 跨文件叠加 HUD（内部调用 static draw_hud） */
 void ui_draw_hud(reader_ui_t *ui) { draw_hud(ui); }
@@ -392,11 +477,14 @@ void ui_draw_hud(reader_ui_t *ui) { draw_hud(ui); }
 /* ---------- 错误屏 ---------- */
 void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
     ui_clear(ui);
-    ui_rect(ui, 0, 0, SCREEN_W, TITLE_H, 200, 60, 60);
-    ui_text_rgb(ui, ui->margin, 3, title, 255, 255, 255);
-    int y = TITLE_H + 6;
+    ui->status_h = ui_status_height(ui, "B 返回");
+    ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, 200, 60, 60);
+    int fh = TTF_FontHeight(ui->font);
+    int ty = (ui->title_h - fh) / 2; if (ty < 0) ty = 0;
+    ui_text_rgb(ui, ui->margin, ty, title, 255, 255, 255);
+    int y = ui->title_h + 6;
     const char *p = msg;
-    while (p && *p && y < SCREEN_H - STATUS_H - 4) {
+    while (p && *p && y < status_top(ui) - 4) {
         const char *nl = strchr(p, '\n');
         int len = nl ? (int)(nl - p) : (int)strlen(p);
         char buf[256];
@@ -406,7 +494,7 @@ void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
         y += ui->line_h;
         p = nl ? nl + 1 : p + strlen(p);
     }
-    ui_draw_status(ui, "", "B 返回");
+    ui_draw_status(ui, "B 返回", NULL);
     draw_hud(ui);
     ui_flip(ui);
 }
@@ -477,8 +565,24 @@ char **wrap_text_font(TTF_Font *font, const char *text, int maxw, int *out_n) {
     return lines;
 }
 
+int ui_status_height(reader_ui_t *ui, const char *left) {
+    int fn = 1;
+    if (left && *left) {
+        char **wl = wrap_text_font(ui->font, left, SCREEN_W - 2 * ui->margin, &fn);
+        for (int i = 0; i < fn; i++) free(wl[i]);
+        free(wl);
+    }
+    if (fn < 1) fn = 1;
+    if (bottom_two_lines(ui)) {
+        /* 特大：脚注行(上) + HUD 行(下)，左在上、右在下 */
+        return fn * ui->line_h + hud_lh(ui) + 4;
+    }
+    /* 其它字号：底部单行（脚注与 HUD 同行），高度 = 一行 */
+    return ui->line_h + 4;
+}
+
 int ui_lines_per_page(reader_ui_t *ui) {
-    int body = SCREEN_H - TITLE_H - STATUS_H - PROG_H - 6;
+    int body = SCREEN_H - ui->title_h - ui->status_h - PROG_H - 6;
     int pp = body / ui->line_h;
     return pp > 1 ? pp : 1;
 }
