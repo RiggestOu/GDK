@@ -18,6 +18,7 @@ typedef struct {
 /* 把 XHTML 解析成块序列（跳过 head/style/script）。返回块数组，需 blocks_free */
 block_t *html_to_blocks(const char *html, int *out_n);
 void blocks_free(block_t *b, int n);
+long chapter_text_chars(const char *html);  /* 一章纯文本字符数（供全书进度统计） */
 
 /* ---------- 排好版的行（像素级） ---------- */
 typedef struct {
@@ -50,6 +51,7 @@ typedef struct {
     int       n_pics;
     char     *doc_href;   /* 本章 XHTML 在 zip 内路径（懒解码图片时用） */
     epub_t   *ep;         /* 所属 epub（懒解码取资源用，不持有） */
+    long      total_chars;/* 本章纯文本总字符数（不含标签/实体；图片块不计入；供全书进度统计） */
 } layout_t;
 
 /* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。
@@ -61,6 +63,7 @@ void layout_free(layout_t *L);
    focus_line>=0 且 focus_label 非空时，在对应图片行画金色高亮框 + 标签。 */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                            const char *title, int pct, int bookmark_on,
-                           int focus_line, int focus_col, const char *focus_label);
+                           int focus_line, int focus_col, const char *focus_label,
+                           int chap, int nchap, long read_chars, long total_chars);
 
 #endif /* LAYOUT_H */

@@ -33,13 +33,15 @@ static unsigned long utf8_cp(const char *p) {
     return cp;
 }
 
-/* 字体候选：彻底移除自定义 font.ttf，只用设备系统字体。
-   顺序即加载优先级；首个能成功打开且含中文(通过下方CJK闸门)的即被采用，并记入 run.log 的 [diag] 日志。
-   首选 /usr/share/fonts/SourceHanSans-Regular-04.ttf(思源黑体，已验证含CJK)——设备 /usr/share/fonts 下唯一含中文的字体。
-   ./system.ttf 为可选覆盖项(若用户想放本地副本到部署目录)；其余系统路径仅作留底。 */
+/* 字体候选：顺序即加载优先级；首个能成功打开且含中文(通过下方CJK闸门)的即被采用，并记入 run.log 的 [diag] 日志。
+   ★ 首选 ./system.ttf（随 App 打包、已用 fonttools 剥离 EBLC/EBDT 内嵌位图表的思源黑体）：
+     设备系统字体 SourceHanSans-Regular-04.ttf 内嵌了位图，小字号时 FreeType 优先用位图，
+     而其中部分字形(如 U+9631 阱)的内嵌位图是错的(被画成相近字形 阡)，导致小字号错字；
+     剥离位图表后强制 FreeType 始终用轮廓(outline)渲染，小字号也正确，且保留全部 22967 个字形不缺字。
+   ★ 次选 /usr/share/fonts/SourceHanSans-Regular-04.ttf(设备系统默认思源黑体)作兜底；其余系统路径仅作留底。 */
 static const char *try_fonts[] = {
-    "/usr/share/fonts/SourceHanSans-Regular-04.ttf",   /* 设备系统默认中文字体(思源黑体) — 主用 */
-    "./system.ttf",                                   /* 可选：用户若想用本地副本可放此文件到部署目录 */
+    "./system.ttf",                                   /* 随 App 打包的去位图思源黑体 — 主用，修复小字号错字(阱→阡) */
+    "/usr/share/fonts/SourceHanSans-Regular-04.ttf",   /* 设备系统默认中文字体(思源黑体) — 兜底 */
     "/usr/share/fonts/default.ttf",
     "/usr/share/fonts/opendingux/default.ttf",
     NULL
@@ -131,15 +133,15 @@ reader_ui_t *ui_init(const char *font_path) {
     /* 标题/状态栏高度随正文字号动态计算（否则大字号时文字溢出蓝色背景/超出屏幕）；
        状态区按阅读页最长脚注（可能折 2 行）估算，保证分页 page_h 与绘制时一致。 */
     ui->title_h  = TTF_FontHeight(ui->font) + 6;
-    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
+    ui->status_h = ui_status_height(ui, "L1+Y或圆4 查看按键说明");
     return ui;
 }
 
 /* 标题字体懒加载（h1=正文+7，h2=正文+4） */
 static void open_heading_fonts(reader_ui_t *ui) {
     const char *p = ui->font_path ? ui->font_path : "/usr/share/fonts/SourceHanSans-Regular-04.ttf";
-    if (!ui->font_h1) ui->font_h1 = TTF_OpenFont(p, ui->font_size + 7);
-    if (!ui->font_h2) ui->font_h2 = TTF_OpenFont(p, ui->font_size + 4);
+    if (!ui->font_h1) { ui->font_h1 = TTF_OpenFont(p, ui->font_size + 7); }
+    if (!ui->font_h2) { ui->font_h2 = TTF_OpenFont(p, ui->font_size + 4); }
 }
 TTF_Font *ui_style_font(reader_ui_t *ui, int style, int *bold) {
     if (bold) *bold = 0;
@@ -180,12 +182,79 @@ void ui_quit(reader_ui_t *ui) {
 void ui_clear(reader_ui_t *ui) {
     SDL_FillRect(ui->screen, NULL, SDL_MapRGB(ui->screen->format, ui->bg_r, ui->bg_g, ui->bg_b));
 }
-/* 圆3 快捷键说明浮层开关（main.c 维护镜像标志 g_km_overlay 并调 ui_set_km_overlay 同步） */
+/* 诊断用：采样屏幕平均亮度（兼容任意 bpp），用于锁定浮层残留根因 */
+int ui_screen_luma(reader_ui_t *ui) {
+    SDL_Surface *s = ui->screen;
+    if (!s || !s->pixels) return -1;
+    if (SDL_LockSurface(s) < 0) return -1;
+    int bpp = s->format->BytesPerPixel;
+    long sum = 0; int cnt = 0;
+    for (int y = 0; y < SCREEN_H; y += 8) {
+        Uint8 *row = (Uint8*)s->pixels + y * s->pitch;
+        for (int x = 0; x < SCREEN_W; x += 8) {
+            Uint8 *pp = row + x * bpp;
+            Uint32 px;
+            if (bpp == 1) px = *pp;
+            else if (bpp == 2) px = *(Uint16*)pp;
+            else if (bpp == 3) px = (Uint32)(pp[0] | (pp[1] << 8) | (pp[2] << 16));
+            else px = *(Uint32*)pp;
+            Uint8 r, g, b; SDL_GetRGB(px, s->format, &r, &g, &b);
+            sum += (int)r + g + b; cnt += 3;
+        }
+    }
+    SDL_UnlockSurface(s);
+    return cnt ? (int)(sum / cnt) : -1;
+}
+
+/* 圆4 快捷键说明浮层开关（main.c 维护镜像标志 g_km_overlay 并调 ui_set_km_overlay 同步） */
 static int s_km_overlay = 0;
 void ui_set_km_overlay(int on) { s_km_overlay = on; }
+/* ---- 多缓冲“残留页”修复（浮层关闭后画面偶发整体变暗的真因） ----
+ * 诊断结论（2026-07-31 抓日志）：程序侧 screen 内存永远是干净的
+ * （[flip] ov=0 luma=66 恒定、[ovl] in=66 out=43 无累积），
+ * 说明变暗不发生在绘制逻辑，而发生在显示层。
+ * OpenDingux/fbcon 的 SDL1.2 即使请求 SDL_SWSURFACE，也常把 screen->pixels
+ * 直接指到 mmap 的 framebuffer 并启用 2~3 页轮转：SDL_Flip = page flip，
+ * flip 后 screen->pixels 切到下一页。于是“只重绘一帧”时只有当前页被刷新，
+ * 其余页仍保留着带半透明遮罩的旧画面；之后事件驱动再 flip 轮转到那张旧页，
+ * 屏幕就突然变暗 —— 这正好解释“有概率出现、多按几次又恢复”。
+ * 修复：画面大面积变化时（浮层开/关）调 ui_flush_frames()，
+ * 本次 ui_flip 把同一帧连续写满全部页，彻底清除残留页。 */
+static int s_flush = 0;
+static SDL_Surface *s_frame = NULL;
+void ui_flush_frames(void) { s_flush = 1; }
+
 void ui_flip(reader_ui_t *ui) {
     extern void ui_keymap_overlay_draw(reader_ui_t *ui);
     if (s_km_overlay) ui_keymap_overlay_draw(ui);
+
+    /* 一次性探测：确认 framebuffer 是否多页轮转（只打印前 6 帧，几乎无开销） */
+    static int probe = 0;
+    if (probe < 6) {
+        fprintf(stderr, "[fb] probe#%d flags=0x%08lx pixels=%p pitch=%d\n",
+                probe, (unsigned long)ui->screen->flags, ui->screen->pixels,
+                (int)ui->screen->pitch);
+        fflush(stderr); probe++;
+    }
+
+    if (s_flush) {
+        s_flush = 0;
+        if (!s_frame) {
+            SDL_PixelFormat *f = ui->screen->format;
+            s_frame = SDL_CreateRGBSurface(SDL_SWSURFACE, SCREEN_W, SCREEN_H,
+                                           f->BitsPerPixel, f->Rmask, f->Gmask, f->Bmask, 0);
+            if (s_frame) SDL_SetAlpha(s_frame, 0, 255);
+        }
+        if (s_frame) {
+            SDL_BlitSurface(ui->screen, NULL, s_frame, NULL);  /* 快照本帧 */
+            SDL_Flip(ui->screen);
+            for (int i = 0; i < 2; i++) {   /* 把另外两页也写成同一帧 */
+                SDL_BlitSurface(s_frame, NULL, ui->screen, NULL);
+                SDL_Flip(ui->screen);
+            }
+            return;
+        }
+    }
     SDL_Flip(ui->screen);
 }
 
@@ -237,7 +306,7 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     /* 标题/状态栏高度随字号动态重算（大字号时蓝条与底部区自动长高，文字不再溢出）；
        状态区按阅读页最长脚注（可能折 2 行）估算，保证分页 page_h 与绘制时一致。 */
     ui->title_h  = TTF_FontHeight(ui->font) + 6;
-    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
+    ui->status_h = ui_status_height(ui, "L1+Y或圆4 查看按键说明");
 }
 void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
 void ui_set_brightness(reader_ui_t *ui, int pct) {

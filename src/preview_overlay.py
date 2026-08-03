@@ -20,7 +20,7 @@ def render(fs, oy, ox, out1x, out2x):
     subx = 6 + 2 * cw
     f = font(fs)
     y = 4 + oy
-    d.text((6 + ox, y), "快捷键说明 (L1+Y/圆3 关闭 · 方向键平移)", font=f, fill=(255, 220, 80, 255))
+    d.text((6 + ox, y), "快捷键说明 (L1+Y/圆4 关闭 · 方向键平移)", font=f, fill=(255, 220, 80, 255))
     y += lh + 4
     rows = [
         ("下一页", "L1 / R1"), ("上一页", "L2 / R2"), ("打开/确认", "A"),

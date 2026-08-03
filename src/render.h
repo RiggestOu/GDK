@@ -37,6 +37,8 @@ void ui_quit(reader_ui_t *ui);
 
 void ui_clear(reader_ui_t *ui);
 void ui_flip(reader_ui_t *ui);
+/* 诊断用：采样屏幕平均亮度（兼容任意 bpp），用于锁定浮层残留根因；-1 表示不可用 */
+int ui_screen_luma(reader_ui_t *ui);
 /* 以指定颜色绘制文本（前景色由调用方给定，内部统一应用亮度） */
 void ui_text(reader_ui_t *ui, int x, int y, const char *text);
 void ui_text_rgb(reader_ui_t *ui, int x, int y, const char *text, int r, int g, int b);
@@ -83,8 +85,11 @@ void ui_set_hud(int batt_pct, const char *clock);
 void ui_set_hud_bookmark(int on);
 void ui_draw_hud(reader_ui_t *ui);
 
-/* 圆3 半透明快捷键说明浮层（由 main.c 切换与绘制，render 在 flip 时回调） */
+/* 圆4 半透明快捷键说明浮层（由 main.c 切换与绘制，render 在 flip 时回调） */
 void ui_set_km_overlay(int on);
 void ui_keymap_overlay_draw(reader_ui_t *ui);
+/* 画面大面积变化后调用：下一次 ui_flip 会把同一帧写满 framebuffer 的全部轮转页，
+   清除多缓冲残留页（= 浮层关闭后画面偶发整体变暗的根因） */
+void ui_flush_frames(void);
 
 #endif /* RENDER_H */

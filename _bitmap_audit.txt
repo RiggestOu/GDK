@@ -1,0 +1,5 @@
+==== SourceHanSans-Regular-04.ttf 内嵌位图[画错成别的字]全量排查 ====
+候选阈值: 自身IoU<0.35; 判定: 与另一字位图IoU>=0.9 且 >自身+0.15
+PhaseA基于 ppem=8; PhaseB 跨全部 17 个 strike 用 IoU>=0.85 确认
+
+未发现[位图被画成别的字]的字。

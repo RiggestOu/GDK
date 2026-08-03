@@ -1,0 +1,8 @@
+# glyph=阱 U+9631 strike=0 ppem=8 w=7 h=7 bearingX=0 bearingY=6 advance=8
+##.#.#.
+#.#####
+##.#.#.
+#.##.#.
+#######
+#..#.#.
+#.#..#.

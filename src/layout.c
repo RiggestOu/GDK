@@ -189,6 +189,25 @@ static rline_t *rl_push(rlist_t *L) {
     return r;
 }
 
+/* UTF-8 字符计数（统计 Unicode 字符数，非字节数），与 main.c utf8_count 语义一致 */
+static long utf8_chars(const char *s) {
+    if (!s) return 0;
+    const unsigned char *p = (const unsigned char *)s;
+    long n = 0;
+    while (*p) { int len = 1; if (*p >= 0xF0) len = 4; else if (*p >= 0xE0) len = 3; else if (*p >= 0xC0) len = 2; p += len; n++; }
+    return n;
+}
+
+/* 统计一章 HTML 的纯文本字符数（去标签/实体后；图片块不计入），供全书进度统计 */
+long chapter_text_chars(const char *html) {
+    int nb = 0;
+    block_t *b = html_to_blocks(html, &nb);
+    long t = 0;
+    for (int i = 0; i < nb; i++) if (b[i].text) t += utf8_chars(b[i].text);
+    blocks_free(b, nb);
+    return t;
+}
+
 layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href) {
     layout_t *L = calloc(1, sizeof(layout_t));
     L->page_h = SCREEN_H - ui->title_h - ui->status_h - PROG_H - 6;
@@ -234,6 +253,7 @@ layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const ch
             }
             continue;
         }
+        if (b->text) L->total_chars += utf8_chars(b->text);  /* 累计本章字符数（供全书进度） */
         if (!b->text || !*b->text) continue;
 
         int bold = 0;
@@ -353,18 +373,42 @@ void layout_free(layout_t *L) {
 /* ================= 绘制一页 ================= */
 void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                            const char *title, int pct, int bookmark_on,
-                           int focus_line, int focus_col, const char *focus_label) {
+                           int focus_line, int focus_col, const char *focus_label,
+                           int chap, int nchap, long read_chars, long total_chars) {
     ui_clear(ui);
-    char t[32];
-    snprintf(t, sizeof(t), "%.28s", title ? title : "");
+    int fh = TTF_FontHeight(ui->font);
+    /* 全书进度（右上角，格式 a/b *%：a=当前章节序号 b=总章节数；* = 基于累计字符数的真实全书进度） */
+    char allbuf[24];
+    int allpct = (total_chars > 0) ? (int)((long long)read_chars * 100 / total_chars) : 0;
+    if (allpct > 100) allpct = 100;
+    snprintf(allbuf, sizeof(allbuf), "%d/%d %d%%", chap, nchap, allpct);
+    int all_w = 0; TTF_SizeUTF8(ui->font, allbuf, &all_w, NULL);
+
+    /* 书名：动态截断，给右上角全书进度留空间，避免两者重叠 */
+    const char *src = title ? title : "";
+    int avail = SCREEN_W - 2 * ui->margin - all_w - 6;
+    if (avail < 24) avail = 24;
+    int keep = 0;
+    for (int k = 0; src[k] && keep < 28; k++) {
+        char tmp[32]; int m = 0;
+        for (int j = 0; j <= k; j++) tmp[m++] = src[j];
+        tmp[m] = 0;
+        int w = 0; TTF_SizeUTF8(ui->font, tmp, &w, NULL);
+        if (w > avail) break;
+        keep = k + 1;
+    }
+    char t[32]; int n = 0;
+    for (int k = 0; k < keep && n < (int)sizeof(t) - 1; k++) t[n++] = src[k];
+    t[n] = 0;
+
     /* 底部状态区高度：按本界面脚注实际折行行数精确计算（大字号自动长高，脚注完整在屏内） */
-    ui->status_h = ui_status_height(ui, "L1+Y或圆3 查看按键说明");
+    ui->status_h = ui_status_height(ui, "L1+Y或圆4 查看按键说明");
     /* 标题栏（蓝条随字号长高，文字垂直居中） */
     ui_rect(ui, 0, 0, SCREEN_W, ui->title_h, ui->accent_r, ui->accent_g, ui->accent_b);
     ui_rect(ui, 0, ui->title_h - 1, SCREEN_W, 1, 0, 0, 0);
-    int fh = TTF_FontHeight(ui->font);
     int ty = (ui->title_h - fh) / 2; if (ty < 0) ty = 0;
-    ui_text_rgb(ui, ui->margin, ty, t, 255, 255, 255);
+    ui_text_rgb(ui, ui->margin, ty, t, 255, 255, 255);                          /* 书名（左对齐） */
+    ui_text_rgb(ui, SCREEN_W - ui->margin - all_w, ty, allbuf, 200, 220, 255);  /* 全书进度（右对齐） */
     ui_set_hud_bookmark(bookmark_on);
 
     int body_top = ui->title_h + 3;
@@ -456,16 +500,19 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
     int st = SCREEN_H - ui->status_h;
     int py = st - PROG_H - 1;
     ui_rect(ui, 0, py - 1, SCREEN_W, 1, 0, 0, 0);
-    int bar_w = SCREEN_W - 2 * ui->margin - 28;
+    int bar_w = SCREEN_W - 2 * ui->margin - 34;   /* 右侧留 34px 给百分比数字 */
     ui_rect(ui, ui->margin, py, bar_w, PROG_H, 40, 42, 50);
     int w = (int)((long)bar_w * pct / 100);
     if (w > bar_w) w = bar_w;
     ui_rect(ui, ui->margin, py, w, PROG_H, ui->accent_r, ui->accent_g, ui->accent_b);
     char pbuf[8];
     snprintf(pbuf, sizeof(pbuf), "%d%%", pct);
-    ui_text_rgb(ui, SCREEN_W - ui->margin - 24, py, pbuf, 200, 210, 230);
+    int pw = 0; TTF_SizeUTF8(ui->font, pbuf, &pw, NULL);
+    int px = SCREEN_W - ui->margin - pw;                  /* 右对齐，不超出右边界 */
+    int pytext = SCREEN_H - ui->status_h - fh;            /* 底边贴状态区顶，避免被状态栏遮挡 */
+    ui_text_rgb(ui, px, pytext, pbuf, 200, 210, 230);
 
-    ui_draw_status(ui, "L1+Y或圆3 查看按键说明", NULL);
+    ui_draw_status(ui, "L1+Y或圆4 查看按键说明", NULL);
     ui_draw_hud(ui);
     ui_flip(ui);
 }
