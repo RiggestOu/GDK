@@ -25,6 +25,7 @@ typedef struct {
     int  line_h;
     int  title_h;
     int  status_h;
+    int  render_epoch;     /* 渲染失效计数：字体/前景色/亮度变化时自增，供阅读页整页缓存判定 */
 } reader_ui_t;
 
 /* 浏览器条目 */
@@ -84,6 +85,9 @@ void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg);
 void ui_set_hud(int batt_pct, const char *clock);
 void ui_set_hud_bookmark(int on);
 void ui_draw_hud(reader_ui_t *ui);
+/* 读取当前 HUD 时钟/电量（供阅读页整页缓存判定是否需重绘） */
+const char *ui_hud_clock(void);
+int ui_hud_batt(void);
 
 /* 圆4 半透明快捷键说明浮层（由 main.c 切换与绘制，render 在 flip 时回调） */
 void ui_set_km_overlay(int on);

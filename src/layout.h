@@ -52,6 +52,7 @@ typedef struct {
     char     *doc_href;   /* 本章 XHTML 在 zip 内路径（懒解码图片时用） */
     epub_t   *ep;         /* 所属 epub（懒解码取资源用，不持有） */
     long      total_chars;/* 本章纯文本总字符数（不含标签/实体；图片块不计入；供全书进度统计） */
+    long      layout_id;  /* 布局实例唯一 ID（每次 layout_chapter 自增），供阅读页整页缓存判定失效 */
 } layout_t;
 
 /* 对一章排版：html → blocks → 折行/对齐/分页。ep 用于取图片资源（可为 NULL 则图片显示占位）。

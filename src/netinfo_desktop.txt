@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=GDK NET INFO
+Comment=WiFi 稳定连接 + Telnet 24
+Exec=launch.sh
+Icon=netinfo_icon
+Categories=applications;
+Type=application

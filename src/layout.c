@@ -209,8 +209,10 @@ long chapter_text_chars(const char *html) {
 }
 
 layout_t *layout_chapter(reader_ui_t *ui, epub_t *ep, const char *html, const char *doc_href) {
+    static long g_lay_id = 0;   /* 布局实例唯一 ID（供阅读页整页缓存判定失效，指针复用也不误命中） */
     layout_t *L = calloc(1, sizeof(layout_t));
     L->page_h = SCREEN_H - ui->title_h - ui->status_h - PROG_H - 6;
+    L->layout_id = ++g_lay_id;
 
     int nb = 0;
     block_t *blocks = html_to_blocks(html, &nb);
@@ -375,6 +377,30 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
                            const char *title, int pct, int bookmark_on,
                            int focus_line, int focus_col, const char *focus_label,
                            int chap, int nchap, long read_chars, long total_chars) {
+    /* ===== 阅读页整页缓存 =====
+     * 主循环每 ~300ms 空闲 tick 都会重画阅读页；原实现每帧都用 TTF_RenderUTF8_Solid 重绘全部正文行
+     * （约 15~20 次 FreeType 软渲染）+ 两次脚注折行测量，是小机 CPU 的主要负担，且白白耗电。
+     * 这里把"整页"渲染结果缓存到一张离屏 surface，仅在【内容确实变化】时才重画并刷新缓存，
+     * 否则只做一次 blit。缓存键覆盖所有会影响画面的输入：渲染版本(字号/前景色/亮度)、页面、
+     * 布局实例 ID(指针复用也不误命中)、进度%、书签星、图片焦点、全书进度、HUD 时钟/电量。
+     * 最坏情况（缓存键每帧都变）= 退化为原行为，无功能回归风险。 */
+    const char *clk = ui_hud_clock();
+    int batt = ui_hud_batt();
+    static SDL_Surface *s_page = NULL;
+    static int   c_epoch = -1, c_page = -1, c_bm = -1, c_fl = -999, c_fc = -1, c_batt = -1;
+    static int   c_chap = -1, c_nchap = -1; static long c_rc = -1, c_tc = -1, c_lid = -1;
+    static char  c_title[64] = "", c_flbl[48] = "", c_clk[8] = "";
+    int same_title = (strcmp(c_title, title ? title : "") == 0);
+    int same_flbl  = (strcmp(c_flbl,  focus_label ? focus_label : "") == 0);
+    int same_clk   = (strcmp(c_clk,  clk ? clk : "") == 0);
+    int valid = s_page && c_epoch == ui->render_epoch && c_page == page && c_lid == (L ? L->layout_id : -1)
+                && c_bm == (bookmark_on ? 1 : 0) && c_fl == focus_line && c_fc == focus_col
+                && c_chap == chap && c_nchap == nchap && c_rc == read_chars && c_tc == total_chars
+                && c_batt == batt && same_clk && same_title && same_flbl;
+
+    if (valid) {
+        SDL_BlitSurface(s_page, NULL, ui->screen, NULL);
+    } else {
     ui_clear(ui);
     int fh = TTF_FontHeight(ui->font);
     /* 全书进度（右上角，格式 a/b *%：a=当前章节序号 b=总章节数；* = 基于累计字符数的真实全书进度） */
@@ -514,5 +540,19 @@ void ui_draw_reader_layout(reader_ui_t *ui, layout_t *L, int page,
 
     ui_draw_status(ui, "L1+Y或圆4 查看按键说明", NULL);
     ui_draw_hud(ui);
+
+    /* 捕获本帧到缓存（供后续相同内容帧只做 blit），并刷新缓存键 */
+    SDL_PixelFormat *fmt = ui->screen->format;
+    if (!s_page)
+        s_page = SDL_CreateRGBSurface(SDL_SWSURFACE, SCREEN_W, SCREEN_H,
+                                      fmt->BitsPerPixel, fmt->Rmask, fmt->Gmask, fmt->Bmask, fmt->Amask);
+    if (s_page) SDL_BlitSurface(ui->screen, NULL, s_page, NULL);
+    c_epoch = ui->render_epoch; c_page = page; c_lid = (L ? L->layout_id : -1);
+    c_bm = bookmark_on ? 1 : 0; c_fl = focus_line; c_fc = focus_col;
+    c_chap = chap; c_nchap = nchap; c_rc = read_chars; c_tc = total_chars; c_batt = batt;
+    snprintf(c_title, sizeof c_title, "%s", title ? title : "");
+    snprintf(c_flbl,  sizeof c_flbl,  "%s", focus_label ? focus_label : "");
+    snprintf(c_clk,   sizeof c_clk,   "%s", clk ? clk : "");
+    }
     ui_flip(ui);
 }

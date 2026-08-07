@@ -1,0 +1,2140 @@
+GDK mini 系统信息采集
+采集时间: 2026-08-07 22:44:22
+设备: 192.168.0.45:23
+============================================================
+
+
+############################################################
+# 内核 / 系统标识
+############################################################
+
+$ uname -a
+Linux opendingux 3.10.14 #109 PREEMPT Wed May 11 10:25:39 EDT 2022 mips GNU/Linux
+
+$ cat /proc/version
+Linux version 3.10.14 (root@avrman-virtual-machine) (gcc version 5.2.0 (Ingenic r3.2.0-gcc520 2017.08-24) ) #109 PREEMPT Wed May 11 10:25:39 EDT 2022
+
+$ cat /etc/os-release 2>/dev/null
+NAME=Buildroot
+VERSION=2014.08-g975123c-dirty
+ID=buildroot
+VERSION_ID=2014.08
+PRETTY_NAME="Buildroot 2014.08"
+
+$ cat /etc/issue 2>/dev/null
+Welcome to OpenDingux
+
+$ cat /etc/*release 2>/dev/null
+NAME=Buildroot
+VERSION=2014.08-g975123c-dirty
+ID=buildroot
+VERSION_ID=2014.08
+PRETTY_NAME="Buildroot 2014.08"
+
+$ cat /etc/opendingux-version 2>/dev/null
+(无输出)
+
+$ hostname
+opendingux
+
+$ uptime
+ 22:44:47 up 12 min,  load average: 3.01, 2.34, 1.27
+
+$ date
+Fri Aug  7 22:44:47 CEST 2026
+
+
+############################################################
+# CPU / 硬件
+############################################################
+
+$ cat /proc/cpuinfo
+system type		: GKD350
+machine			: Unknown
+processor		: 0
+cpu model		: GameKiddy V0.0  FPU V0.0
+BogoMIPS		: 1535.18
+wait instruction	: yes
+microsecond timers	: no
+tlb_entries		: 32
+extra interrupt vector	: yes
+hardware watchpoint	: yes, count: 1, address/irw mask: [0x0fff]
+isa			: mips32r1 mips32r2
+ASEs implemented	: mxu-v2
+shadow register sets	: 1
+kscratch registers	: 7
+core			: 0
+VCED exceptions		: not available
+VCEI exceptions		: not available
+
+Hardware		: GKD350
+Serial			: 00000000 00000000 00000000 00000000
+
+$ cat /proc/loadavg
+3.01 2.34 1.27 2/63 2912
+
+
+############################################################
+# 内存
+############################################################
+
+$ cat /proc/meminfo | head -20
+MemTotal:         123308 kB
+MemFree:            4840 kB
+Buffers:           56256 kB
+Cached:            22892 kB
+SwapCached:            0 kB
+Active:            43204 kB
+Inactive:          39032 kB
+Active(anon):       1016 kB
+Inactive(anon):     2712 kB
+Active(file):      42188 kB
+Inactive(file):    36320 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       1049596 kB
+SwapFree:        1049596 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:          3108 kB
+Mapped:             2816 kB
+Shmem:               640 kB
+
+$ free 2>/dev/null || free -m 2>/dev/null
+             total         used         free       shared      buffers
+Mem:        123308       118460         4848            0        56256
+-/+ buffers:              62204        61104
+Swap:      1049596            0      1049596
+
+
+############################################################
+# 磁盘 / 挂载
+############################################################
+
+$ df -h 2>/dev/null || df 2>/dev/null
+Filesystem                Size      Used Available Use% Mounted on
+/dev/mmcblk0p1          739.9M    603.9M     82.3M  88% /
+udev                     64.0K         0     64.0K   0% /dev
+tmpfs                   128.0M         0    128.0M   0% /dev/shm
+tmpfs                   128.0M    640.0K    127.4M   0% /var
+tmpfs                     4.0K         0      4.0K   0% /media
+tmpfs                     4.0K         0      4.0K   0% /mnt
+/dev/mmcblk0p4           23.7G     23.6G    106.7M 100% /media/roms
+/dev/mmcblk0p2            3.4G      2.0G      1.2G  62% /media/data
+/dev/mmcblk1p1          233.2G    224.2G      9.0G  96% /media/sdcard
+/dev/loop0              128.0K    128.0K         0 100% /mnt/Wifi
+
+$ mount
+rootfs on / type rootfs (rw)
+/dev/mmcblk0p1 on / type ext3 (rw,relatime,data=ordered)
+udev on /dev type devtmpfs (rw,relatime,size=64k,nr_inodes=15233,mode=755)
+proc on /proc type proc (rw,relatime)
+devpts on /dev/pts type devpts (rw,relatime,mode=600,ptmxmode=000)
+tmpfs on /dev/shm type tmpfs (rw,relatime,size=131072k)
+tmpfs on /var type tmpfs (rw,relatime,size=131072k,mode=755)
+tmpfs on /media type tmpfs (ro,relatime,size=4k,mode=755)
+tmpfs on /mnt type tmpfs (rw,relatime,size=4k,mode=755)
+sysfs on /sys type sysfs (rw,relatime)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+configfs on /sys/kernel/config type configfs (rw,relatime)
+/dev/mmcblk0p4 on /media/roms type vfat (rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,flush,errors=remount-ro)
+/dev/mmcblk0p2 on /media/data type ext3 (rw,noatime,nodiratime,data=ordered)
+/dev/mmcblk1p1 on /media/sdcard type vfat (rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,flush,errors=remount-ro)
+/dev/loop0 on /mnt/Wifi type squashfs (ro,nosuid,nodev,relatime)
+
+$ cat /proc/mounts
+rootfs / rootfs rw 0 0
+/dev/mmcblk0p1 / ext3 rw,relatime,data=ordered 0 0
+udev /dev devtmpfs rw,relatime,size=64k,nr_inodes=15233,mode=755 0 0
+proc /proc proc rw,relatime 0 0
+devpts /dev/pts devpts rw,relatime,mode=600,ptmxmode=000 0 0
+tmpfs /dev/shm tmpfs rw,relatime,size=131072k 0 0
+tmpfs /var tmpfs rw,relatime,size=131072k,mode=755 0 0
+tmpfs /media tmpfs ro,relatime,size=4k,mode=755 0 0
+tmpfs /mnt tmpfs rw,relatime,size=4k,mode=755 0 0
+sysfs /sys sysfs rw,relatime 0 0
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+configfs /sys/kernel/config configfs rw,relatime 0 0
+/dev/mmcblk0p4 /media/roms vfat rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,flush,errors=remount-ro 0 0
+/dev/mmcblk0p2 /media/data ext3 rw,noatime,nodiratime,data=ordered 0 0
+/dev/mmcblk1p1 /media/sdcard vfat rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,utf8,flush,errors=remount-ro 0 0
+/dev/loop0 /mnt/Wifi squashfs ro,nosuid,nodev,relatime 0 0
+
+
+############################################################
+# 网络
+############################################################
+
+$ ifconfig -a 2>/dev/null
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+wlan0     Link encap:Ethernet  HWaddr 00:2E:2D:30:4D:09  
+          inet addr:192.168.0.45  Bcast:192.168.0.255  Mask:255.255.255.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:891 errors:0 dropped:244 overruns:0 frame:0
+          TX packets:375 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:156004 (152.3 KiB)  TX bytes:60684 (59.2 KiB)
+
+$ ip addr 2>/dev/null
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq qlen 1000
+    link/ether 00:2e:2d:30:4d:09 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.45/24 brd 192.168.0.255 scope global wlan0
+       valid_lft forever preferred_lft forever
+
+$ cat /proc/net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+ wlan0:  156466     895    0  244    0     0          0         0    62256     379    0    0    0     0       0          0
+
+$ route -n 2>/dev/null || cat /proc/net/route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         192.168.0.1     0.0.0.0         UG    0      0        0 wlan0
+192.168.0.0     0.0.0.0         255.255.255.0   U     0      0        0 wlan0
+
+$ cat /etc/resolv.conf 2>/dev/null
+nameserver 192.168.0.1 # wlan0
+
+$ for n in /sys/class/net/*; do echo "--- $n ---"; cat $n/address 2>/dev/null; cat $n/operstate 2>/dev/null; done
+--- /sys/class/net/lo ---
+00:00:00:00:00:00
+unknown
+--- /sys/class/net/wlan0 ---
+00:2e:2d:30:4d:09
+up
+
+
+############################################################
+# libc / 工具链运行时
+############################################################
+
+$ ls -la /lib/libc* 2>/dev/null
+lrwxrwxrwx    1 root     root            21 Jan 31  2021 /lib/libc.so.0 -> libuClibc-0.9.33.2.so
+-rwxr-xr-x    1 root     root         10732 Dec 13  2021 /lib/libcrypt-0.9.33.2.so
+lrwxrwxrwx    1 root     root            20 Jan 31  2021 /lib/libcrypt.so.0 -> libcrypt-0.9.33.2.so
+
+$ ls -la /lib/ld* 2>/dev/null
+-rwxr-xr-x    1 root     root         31732 Dec 13  2021 /lib/ld-uClibc-0.9.33.2.so
+lrwxrwxrwx    1 root     root            21 Jan 31  2021 /lib/ld-uClibc.so.0 -> ld-uClibc-0.9.33.2.so
+
+$ ls -la /lib 2>/dev/null | head -60
+drwxr-xr-x    5 root     root          4096 Dec 21  2021 .
+drwxr-xr-x   16 root     root          4096 Mar 10  2021 ..
+drwxr-xr-x    3 root     root          4096 Feb  1  2021 firmware
+-rwxr-xr-x    1 root     root         31732 Dec 13  2021 ld-uClibc-0.9.33.2.so
+lrwxrwxrwx    1 root     root            21 Jan 31  2021 ld-uClibc.so.0 -> ld-uClibc-0.9.33.2.so
+lrwxrwxrwx    1 root     root            18 Jan 31  2021 libatomic.so -> libatomic.so.1.1.0
+lrwxrwxrwx    1 root     root            18 Jan 31  2021 libatomic.so.1 -> libatomic.so.1.1.0
+-rwxr-xr-x    1 root     root         19956 Feb  1  2021 libatomic.so.1.1.0
+lrwxrwxrwx    1 root     root            17 Feb  1  2021 libblkid.so.1 -> libblkid.so.1.1.0
+-rwxr-xr-x    1 root     root        287844 Feb  1  2021 libblkid.so.1.1.0
+lrwxrwxrwx    1 root     root            21 Jan 31  2021 libc.so.0 -> libuClibc-0.9.33.2.so
+-rwxr-xr-x    1 root     root         10732 Dec 13  2021 libcrypt-0.9.33.2.so
+lrwxrwxrwx    1 root     root            20 Jan 31  2021 libcrypt.so.0 -> libcrypt-0.9.33.2.so
+-rwxr-xr-x    1 root     root         13900 Dec 13  2021 libdl-0.9.33.2.so
+lrwxrwxrwx    1 root     root            17 Jan 31  2021 libdl.so.0 -> libdl-0.9.33.2.so
+lrwxrwxrwx    1 root     root            17 Feb  1  2021 libfdisk.so.1 -> libfdisk.so.1.1.0
+-rwxr-xr-x    1 root     root        377548 Feb  1  2021 libfdisk.so.1.1.0
+-rw-r--r--    1 root     root           132 Jan 31  2021 libgcc_s.so
+-rw-r--r--    1 root     root        200920 Feb  1  2021 libgcc_s.so.1
+-rwxr-xr-x    1 root     root         48376 Dec 13  2021 libm-0.9.33.2.so
+lrwxrwxrwx    1 root     root            16 Jan 31  2021 libm.so.0 -> libm-0.9.33.2.so
+lrwxrwxrwx    1 root     root            17 Feb  1  2021 libmount.so.1 -> libmount.so.1.1.0
+-rwxr-xr-x    1 root     root        301136 Feb  1  2021 libmount.so.1.1.0
+-rwxrw-rw-    1 root     root        232520 Dec  7  2021 libpng16.so.16
+-rwxr-xr-x    1 root     root        105652 Dec 13  2021 libpthread-0.9.33.2.so
+lrwxrwxrwx    1 root     root            22 Jan 31  2021 libpthread.so.0 -> libpthread-0.9.33.2.so
+-rwxr-xr-x    1 root     root         14792 Dec 13  2021 librt-0.9.33.2.so
+lrwxrwxrwx    1 root     root            17 Jan 31  2021 librt.so.0 -> librt-0.9.33.2.so
+lrwxrwxrwx    1 root     root            21 Feb  1  2021 libsmartcols.so.1 -> libsmartcols.so.1.1.0
+-rwxr-xr-x    1 root     root        147584 Feb  1  2021 libsmartcols.so.1.1.0
+-rwxr-xr-x    1 root     root         24560 Dec 13  2021 libthread_db-0.9.33.2.so
+lrwxrwxrwx    1 root     root            24 Jan 31  2021 libthread_db.so.1 -> libthread_db-0.9.33.2.so
+-rwxr-xr-x    1 root     root        372088 Dec 13  2021 libuClibc-0.9.33.2.so
+lrwxrwxrwx    1 root     root            16 Feb  1  2021 libudev.so.1 -> libudev.so.1.4.1
+-rwxr-xr-x    1 root     root        133196 Feb  1  2021 libudev.so.1.4.1
+-rwxr-xr-x    1 root     root          4764 Dec 13  2021 libutil-0.9.33.2.so
+lrwxrwxrwx    1 root     root            19 Jan 31  2021 libutil.so.0 -> libutil-0.9.33.2.so
+lrwxrwxrwx    1 root     root            16 Feb  1  2021 libuuid.so.1 -> libuuid.so.1.3.0
+-rwxr-xr-x    1 root     root         15864 Feb  1  2021 libuuid.so.1.3.0
+drwxr-xr-x    3 root     root          4096 Jan  4  2021 modules
+drwxr-xr-x    3 root     root          4096 Feb  1  2021 udev
+
+$ busybox 2>&1 | head -5
+BusyBox v1.22.1 (2021-01-31 21:36:21 EST) multi-call binary.
+BusyBox is copyrighted by many authors between 1998-2012.
+Licensed under GPLv2. See source distribution for detailed
+copyright notices.
+
+$ busybox 2>&1 | tail -20
+	fuser, getopt, getty, grep, groups, gunzip, gzip, halt, hd, head,
+	hexdump, hostid, hostname, hwclock, id, ifconfig, ifdown, ifup, init,
+	inotifyd, install, ionice, iostat, ip, ipcrm, ipcs, kbd_mode, kill,
+	killall, killall5, klogd, less, linux32, linux64, linuxrc, ln,
+	loadfont, loadkmap, logger, login, logname, logread, losetup, ls, lsof,
+	lsusb, lzcat, makedevs, md5sum, mesg, microcom, mkdir, mkdosfs, mkfifo,
+	mkfs.minix, mkfs.vfat, mknod, mkswap, mktemp, more, mount, mountpoint,
+	mv, nice, nmeter, nohup, nslookup, od, openvt, passwd, patch, pgrep,
+	pidof, ping, pipe_progress, pivot_root, pkill, pmap, poweroff,
+	powertop, printenv, printf, ps, pstree, pwd, pwdx, rdate, rdev,
+	readlink, readprofile, realpath, reboot, renice, reset, resize, rfkill,
+	rm, rmdir, route, rtcwake, run-parts, rx, script, sed, seq, setarch,
+	setconsole, setfont, setkeycodes, setlogcons, setsid, sh, sha1sum,
+	sha256sum, sha3sum, sha512sum, showkey, sleep, sort, start-stop-daemon,
+	strings, stty, su, sulogin, swapoff, swapon, switch_root, sync, sysctl,
+	syslogd, tail, tar, tee, telnetd, test, time, timeout, top, touch, tr,
+	true, tty, ttysize, udhcpc, udhcpd, umount, uname, uniq, unix2dos,
+	unlzma, unzip, uptime, usleep, uudecode, uuencode, vi, watch, watchdog,
+	wc, wget, which, whoami, xargs, yes, zcat
+
+
+############################################################
+# SDL / 图形库
+############################################################
+
+$ ls -la /usr/lib/libSDL* 2>/dev/null
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL-1.2.so.0 -> libSDL-1.2.so.0.11.4
+-rwxr-xr-x    1 root     root        388072 Feb  1  2021 /usr/lib/libSDL-1.2.so.0.11.4
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL.so -> libSDL-1.2.so.0.11.4
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL_gfx.so -> libSDL_gfx.so.13.9.1
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL_gfx.so.13 -> libSDL_gfx.so.13.9.1
+-rwxr-xr-x    1 root     root         90160 Feb  1  2021 /usr/lib/libSDL_gfx.so.13.9.1
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_image-1.2.so.0 -> libSDL_image-1.2.so.0.8.5
+-rwxr-xr-x    1 root     root         34944 Feb  1  2021 /usr/lib/libSDL_image-1.2.so.0.8.5
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_image.so -> libSDL_image-1.2.so.0.8.5
+lrwxrwxrwx    1 root     root            26 Feb  1  2021 /usr/lib/libSDL_mixer-1.2.so.0 -> libSDL_mixer-1.2.so.0.12.0
+-rwxr-xr-x    1 root     root        170204 Feb  1  2021 /usr/lib/libSDL_mixer-1.2.so.0.12.0
+lrwxrwxrwx    1 root     root            26 Feb  1  2021 /usr/lib/libSDL_mixer.so -> libSDL_mixer-1.2.so.0.12.0
+lrwxrwxrwx    1 root     root            23 Feb  1  2021 /usr/lib/libSDL_net-1.2.so.0 -> libSDL_net-1.2.so.0.8.0
+-rwxr-xr-x    1 root     root         14868 Feb  1  2021 /usr/lib/libSDL_net-1.2.so.0.8.0
+lrwxrwxrwx    1 root     root            23 Feb  1  2021 /usr/lib/libSDL_net.so -> libSDL_net-1.2.so.0.8.0
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_sound-1.0.so.1 -> libSDL_sound-1.0.so.1.0.2
+-rwxr-xr-x    1 root     root        170996 Feb  1  2021 /usr/lib/libSDL_sound-1.0.so.1.0.2
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_sound.so -> libSDL_sound-1.0.so.1.0.2
+lrwxrwxrwx    1 root     root            24 Feb  1  2021 /usr/lib/libSDL_ttf-2.0.so.0 -> libSDL_ttf-2.0.so.0.10.1
+-rwxr-xr-x    1 root     root         24236 Feb  1  2021 /usr/lib/libSDL_ttf-2.0.so.0.10.1
+lrwxrwxrwx    1 root     root            24 Feb  1  2021 /usr/lib/libSDL_ttf.so -> libSDL_ttf-2.0.so.0.10.1
+
+$ ls -la /usr/lib/libSDL_* 2>/dev/null
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL_gfx.so -> libSDL_gfx.so.13.9.1
+lrwxrwxrwx    1 root     root            20 Feb  1  2021 /usr/lib/libSDL_gfx.so.13 -> libSDL_gfx.so.13.9.1
+-rwxr-xr-x    1 root     root         90160 Feb  1  2021 /usr/lib/libSDL_gfx.so.13.9.1
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_image-1.2.so.0 -> libSDL_image-1.2.so.0.8.5
+-rwxr-xr-x    1 root     root         34944 Feb  1  2021 /usr/lib/libSDL_image-1.2.so.0.8.5
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_image.so -> libSDL_image-1.2.so.0.8.5
+lrwxrwxrwx    1 root     root            26 Feb  1  2021 /usr/lib/libSDL_mixer-1.2.so.0 -> libSDL_mixer-1.2.so.0.12.0
+-rwxr-xr-x    1 root     root        170204 Feb  1  2021 /usr/lib/libSDL_mixer-1.2.so.0.12.0
+lrwxrwxrwx    1 root     root            26 Feb  1  2021 /usr/lib/libSDL_mixer.so -> libSDL_mixer-1.2.so.0.12.0
+lrwxrwxrwx    1 root     root            23 Feb  1  2021 /usr/lib/libSDL_net-1.2.so.0 -> libSDL_net-1.2.so.0.8.0
+-rwxr-xr-x    1 root     root         14868 Feb  1  2021 /usr/lib/libSDL_net-1.2.so.0.8.0
+lrwxrwxrwx    1 root     root            23 Feb  1  2021 /usr/lib/libSDL_net.so -> libSDL_net-1.2.so.0.8.0
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_sound-1.0.so.1 -> libSDL_sound-1.0.so.1.0.2
+-rwxr-xr-x    1 root     root        170996 Feb  1  2021 /usr/lib/libSDL_sound-1.0.so.1.0.2
+lrwxrwxrwx    1 root     root            25 Feb  1  2021 /usr/lib/libSDL_sound.so -> libSDL_sound-1.0.so.1.0.2
+lrwxrwxrwx    1 root     root            24 Feb  1  2021 /usr/lib/libSDL_ttf-2.0.so.0 -> libSDL_ttf-2.0.so.0.10.1
+-rwxr-xr-x    1 root     root         24236 Feb  1  2021 /usr/lib/libSDL_ttf-2.0.so.0.10.1
+lrwxrwxrwx    1 root     root            24 Feb  1  2021 /usr/lib/libSDL_ttf.so -> libSDL_ttf-2.0.so.0.10.1
+
+$ ls -la /usr/lib/libpng* /usr/lib/libjpeg* /usr/lib/libz* /usr/lib/libfreetype* 2>/dev/null
+lrwxrwxrwx    1 root     root            21 Feb  1  2021 /usr/lib/libfreetype.so -> libfreetype.so.6.17.1
+lrwxrwxrwx    1 root     root            21 Feb  1  2021 /usr/lib/libfreetype.so.6 -> libfreetype.so.6.17.1
+-rwxr-xr-x    1 root     root        683296 Feb  1  2021 /usr/lib/libfreetype.so.6.17.1
+lrwxrwxrwx    1 root     root            16 Feb  1  2021 /usr/lib/libjpeg.so -> libjpeg.so.9.4.0
+lrwxrwxrwx    1 root     root            16 Feb  1  2021 /usr/lib/libjpeg.so.8 -> libjpeg.so.8.4.0
+-rwxr-xr-x    1 root     root        225420 Feb  1  2021 /usr/lib/libjpeg.so.8.4.0
+lrwxrwxrwx    1 root     root            16 Feb  1  2021 /usr/lib/libjpeg.so.9 -> libjpeg.so.9.4.0
+-rwxr-xr-x    1 root     root        232132 Feb  1  2021 /usr/lib/libjpeg.so.9.4.0
+lrwxrwxrwx    1 root     root            11 Feb  1  2021 /usr/lib/libpng.so -> libpng14.so
+lrwxrwxrwx    1 root     root            19 Feb  1  2021 /usr/lib/libpng14.so -> libpng14.so.14.13.0
+lrwxrwxrwx    1 root     root            19 Feb  1  2021 /usr/lib/libpng14.so.14 -> libpng14.so.14.22.0
+-rwxr-xr-x    1 root     root        156336 Feb  1  2021 /usr/lib/libpng14.so.14.13.0
+-rwxr-xr-x    1 root     root        154752 Feb  1  2021 /usr/lib/libpng14.so.14.22.0
+lrwxrwxrwx    1 root     root            14 Feb  1  2021 /usr/lib/libz.so -> libz.so.1.2.11
+lrwxrwxrwx    1 root     root            14 Feb  1  2021 /usr/lib/libz.so.1 -> libz.so.1.2.11
+-rwxr-xr-x    1 root     root         92152 Feb  1  2021 /usr/lib/libz.so.1.2.11
+
+$ ls -la /usr/lib/libwebp* 2>/dev/null
+(无输出)
+
+$ sdl-config --version --libs --cflags 2>/dev/null
+(无输出)
+
+$ ls /usr/lib/ | head -100
+allegro
+alsa-lib
+ao
+apitrace
+charset.alias
+de.msg
+e2fsprogs
+en.msg
+fi.msg
+fr.msg
+gio
+it.msg
+ja.msg
+libFLAC.so
+libFLAC.so.8
+libFLAC.so.8.3.0
+libIL.so
+libIL.so.1
+libIL.so.1.1.0
+libSDL-1.2.so.0
+libSDL-1.2.so.0.11.4
+libSDL.so
+libSDL_gfx.so
+libSDL_gfx.so.13
+libSDL_gfx.so.13.9.1
+libSDL_image-1.2.so.0
+libSDL_image-1.2.so.0.8.5
+libSDL_image.so
+libSDL_mixer-1.2.so.0
+libSDL_mixer-1.2.so.0.12.0
+libSDL_mixer.so
+libSDL_net-1.2.so.0
+libSDL_net-1.2.so.0.8.0
+libSDL_net.so
+libSDL_sound-1.0.so.1
+libSDL_sound-1.0.so.1.0.2
+libSDL_sound.so
+libSDL_ttf-2.0.so.0
+libSDL_ttf-2.0.so.0.10.1
+libSDL_ttf.so
+libaio.so
+libaio.so.1
+libaio.so.1.0.1
+liballeg.so
+liballeg.so.4.4
+liballeg.so.4.4.2
+libao.so
+libao.so.4
+libao.so.4.0.0
+libasound.so
+libasound.so.2
+libasound.so.2.0.0
+libbfd-2.24.51.20140505.so
+libbfd-2.32.so
+libbfd.so
+libblkid.so
+libbz2.so
+libbz2.so.1.0
+libbz2.so.1.0.6
+libcharset.so
+libcharset.so.1
+libcharset.so.1.0.0
+libcom_err.so
+libcom_err.so.2
+libcom_err.so.2.1
+libconfuse.so
+libconfuse.so.0
+libconfuse.so.0.0.0
+libcrypto.so
+libcrypto.so.1.0.0
+libcuefile.so
+libcuefile.so.0
+libcuefile.so.0.0.0
+libdaemon.so
+libdaemon.so.0
+libdaemon.so.0.5.0
+libdmalloc.so
+libdmallocth.so
+libdmallocthcxx.so
+libdmallocxx.so
+libdrm.so
+libdrm.so.2
+libdrm.so.2.4.0
+libe2p.so
+libe2p.so.2
+libe2p.so.2.3
+libexpat.so
+libexpat.so.1
+libexpat.so.1.6.0
+libext2fs.so
+libext2fs.so.2
+libext2fs.so.2.4
+libfdisk.so
+libffi.so
+libffi.so.6
+libffi.so.6.0.2
+libfluidsynth.so
+libfluidsynth.so.1
+libfluidsynth.so.1.5.2
+libformw.so
+
+
+############################################################
+# 字体
+############################################################
+
+$ ls -la /usr/share/fonts/ 2>/dev/null
+drwxr-xr-x    3 root     root          4096 Feb  1  2021 .
+drwxr-xr-x   30 root     root          4096 Dec 28  2021 ..
+-rw-r--r--    1 root     root      18609598 Nov 16  2019 SourceHanSans-Regular-04.ttf
+drwxr-xr-x    2 root     root          4096 Feb  1  2021 dejavu
+lrwxrwxrwx    1 root     root             1 Jan  5  2021 truetype -> .
+
+$ find /usr/share/fonts -iname '*.ttf' -o -iname '*.otf' 2>/dev/null
+/usr/share/fonts/dejavu/DejaVuSerif-BoldItalic.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono-Bold.ttf
+/usr/share/fonts/dejavu/DejaVuSerif-Bold.ttf
+/usr/share/fonts/dejavu/DejaVuSansCondensed-Oblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono.ttf
+/usr/share/fonts/dejavu/DejaVuSans-Oblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans-ExtraLight.ttf
+/usr/share/fonts/dejavu/DejaVuSerif.ttf
+/usr/share/fonts/dejavu/DejaVuSerifCondensed-Bold.ttf
+/usr/share/fonts/dejavu/DejaVuSansCondensed-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono-Oblique.ttf
+/usr/share/fonts/dejavu/DejaVuSansCondensed-Bold.ttf
+/usr/share/fonts/dejavu/DejaVuSansCondensed.ttf
+/usr/share/fonts/dejavu/DejaVuSerif-Italic.ttf
+/usr/share/fonts/dejavu/DejaVuSerifCondensed-BoldItalic.ttf
+/usr/share/fonts/dejavu/DejaVuSansMono-BoldOblique.ttf
+/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf
+/usr/share/fonts/dejavu/DejaVuSerifCondensed.ttf
+/usr/share/fonts/dejavu/DejaVuSerifCondensed-Italic.ttf
+/usr/share/fonts/SourceHanSans-Regular-04.ttf
+
+$ ls -la /usr/share/fonts/dejavu/ 2>/dev/null
+drwxr-xr-x    2 root     root          4096 Feb  1  2021 .
+drwxr-xr-x    3 root     root          4096 Feb  1  2021 ..
+-rw-r--r--    1 root     root        693876 Feb  1  2021 DejaVuSans-Bold.ttf
+-rw-r--r--    1 root     root        632168 Feb  1  2021 DejaVuSans-BoldOblique.ttf
+-rw-r--r--    1 root     root        352492 Feb  1  2021 DejaVuSans-ExtraLight.ttf
+-rw-r--r--    1 root     root        632416 Feb  1  2021 DejaVuSans-Oblique.ttf
+-rw-r--r--    1 root     root        741536 Feb  1  2021 DejaVuSans.ttf
+-rw-r--r--    1 root     root        653336 Feb  1  2021 DejaVuSansCondensed-Bold.ttf
+-rw-r--r--    1 root     root        600936 Feb  1  2021 DejaVuSansCondensed-BoldOblique.ttf
+-rw-r--r--    1 root     root        596596 Feb  1  2021 DejaVuSansCondensed-Oblique.ttf
+-rw-r--r--    1 root     root        664972 Feb  1  2021 DejaVuSansCondensed.ttf
+-rw-r--r--    1 root     root        318392 Feb  1  2021 DejaVuSansMono-Bold.ttf
+-rw-r--r--    1 root     root        239876 Feb  1  2021 DejaVuSansMono-BoldOblique.ttf
+-rw-r--r--    1 root     root        245948 Feb  1  2021 DejaVuSansMono-Oblique.ttf
+-rw-r--r--    1 root     root        335068 Feb  1  2021 DejaVuSansMono.ttf
+-rw-r--r--    1 root     root        345364 Feb  1  2021 DejaVuSerif-Bold.ttf
+-rw-r--r--    1 root     root        336884 Feb  1  2021 DejaVuSerif-BoldItalic.ttf
+-rw-r--r--    1 root     root        343388 Feb  1  2021 DejaVuSerif-Italic.ttf
+-rw-r--r--    1 root     root        367260 Feb  1  2021 DejaVuSerif.ttf
+-rw-r--r--    1 root     root        320720 Feb  1  2021 DejaVuSerifCondensed-Bold.ttf
+-rw-r--r--    1 root     root        335940 Feb  1  2021 DejaVuSerifCondensed-BoldItalic.ttf
+-rw-r--r--    1 root     root        342736 Feb  1  2021 DejaVuSerifCondensed-Italic.ttf
+-rw-r--r--    1 root     root        334040 Feb  1  2021 DejaVuSerifCondensed.ttf
+
+
+############################################################
+# 内核模块 (WiFi 驱动等)
+############################################################
+
+$ uname -r
+3.10.14
+
+$ ls -la /lib/modules/ 2>/dev/null
+drwxr-xr-x    3 root     root          4096 Jan  4  2021 .
+drwxr-xr-x    5 root     root          4096 Dec 21  2021 ..
+drwxr-xr-x    3 root     root          4096 Aug  8  2026 3.10.14
+
+$ find /lib/modules -iname '*.ko' 2>/dev/null | head -80
+/lib/modules/3.10.14/kernel/drivers/base/firmware_class.ko
+/lib/modules/3.10.14/kernel/drivers/net/wireless/rtl8188f/rtl8188fu.ko
+/lib/modules/3.10.14/kernel/drivers/net/wireless/rtl8188c/8192cu.ko
+/lib/modules/3.10.14/kernel/drivers/net/wireless/rtl8188eus/8188eu.ko
+/lib/modules/3.10.14/kernel/drivers/usb/gadget/usb_f_mass_storage.ko
+/lib/modules/3.10.14/kernel/drivers/usb/gadget/g_mass_storage.ko
+/lib/modules/3.10.14/kernel/drivers/usb/gadget/libcomposite.ko
+
+$ lsmod 2>/dev/null
+Module                  Size  Used by
+rtl8188fu            1379210  0 
+firmware_class         10420  1 rtl8188fu
+
+$ lsusb 2>/dev/null
+Bus 001 Device 002: ID 0bda:f179
+Bus 001 Device 001: ID 1d6b:0002
+
+
+############################################################
+# 目录结构 / 菜单系统
+############################################################
+
+$ echo HOME=$HOME
+HOME=/usr/local/home
+
+$ ls -la /media/roms/ 2>/dev/null
+drwxr-xr-x   11 root     root         16384 Jan  1  1970 .
+drwxr-xr-x    5 root     root           120 Aug  8  2026 ..
+-rwxr-xr-x    1 root     root          1370 Jul 17 01:35 BOOTEX.LOG
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 Ebook
+drwxr-xr-x    2 root     root         16384 Dec 28  2021 GKDmini??
+-rwxr-xr-x    1 root     root       2757989 May 30  2021 IUX?????.docx
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 System Volume Information
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 apps
+-rwxr-xr-x    1 root     root         77878 Aug 29  2021 menu.bmp
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 music
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 picture
+drwxr-xr-x   24 root     root         16384 Dec  5  2019 roms
+drwxr-xr-x    3 root     root         16384 Jul 19 11:37 test
+drwxr-xr-x    2 root     root         16384 Dec  5  2019 video
+-rwxr-xr-x    1 root     root           399 Aug 29  2021 xmame.png
+-rwxr-xr-x    1 root     root        713165 Aug 29  2021 ???.png
+
+$ ls -la /media/roms/apps/ 2>/dev/null
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 .
+drwxr-xr-x   11 root     root         16384 Jan  1  1970 ..
+drwxr-xr-x    2 root     root         16384 Jul 31 21:46 EPUBReader
+-rwxr-xr-x    1 root     root          4713 Jul 30 09:39 EPUBReader.log
+-rwxr-xr-x    1 root     root          6846 Jul 31 00:33 KeyTest.log
+-rwxr-xr-x    1 root     root          8192 Jul 31 02:29 KeyTest.opk
+-rwxr-xr-x    1 root     root         20480 Aug  7 16:49 NetInfo.opk
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 OpenBOR
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 af-84
+drwxr-xr-x    2 root     root         16384 Aug  7 22:32 netinfo
+drwxr-xr-x    5 root     root         16384 Dec 25  2021 sdl-pal98
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 sdl-palmhb
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 sdl-palmsk
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 sdl-paltqsy
+drwxr-xr-x   10 root     root         16384 Jan 27  2025 sdljy
+drwxr-xr-x   10 root     root         16384 Jan 11  2020 sdljy-clzr+
+drwxr-xr-x    9 root     root         16384 Dec  5  2019 sdljy-tsj
+drwxr-xr-x    5 root     root         16384 Dec  5  2019 xmame_2_0
+
+$ ls -la /usr/local/home/ 2>/dev/null
+drwxr-xr-x   64 root     root          4096 Jul 30 00:16 .
+drwxr-xr-x    8 root     root          4096 Aug 21  2014 ..
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .3doh
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 .OpenBOR
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .apricots
+-rwxrw-rw-    1 root     root          2003 Jul 17 01:34 .bard_config
+drwxr-xr-x    3 root     root          4096 Jan 11  2020 .chocolate-doom
+drwxr-xr-x   10 root     root          4096 Jan 11  2020 .config
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .dosbox
+drwxr-xr-x    4 root     root          4096 Dec 28  2021 .easyrpg
+drwxr-xr-x    2 root     root          4096 Jul 30 07:59 .epubreader
+drwxr-xr-x    8 root     root          4096 Jul 28 23:38 .esoteric
+drwxr-xr-x    8 root     root          4096 Dec  5  2019 .fba
+drwxr-xr-x    9 root     root          4096 Dec 28  2021 .fba-350hgai
+drwxr-xr-x    8 root     root          4096 Nov 29  2019 .fba4arm
+drwxr-xr-x    8 root     root          4096 Dec  5  2019 .fbneo
+drwxr-xr-x    9 root     root          4096 Dec 28  2021 .fceux
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 .gambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .ganbare
+drwxr-xr-x    7 root     root          4096 Dec 28  2021 .genplus-sx
+drwxr-xr-x    4 root     root          4096 Dec 28  2021 .gmenu2x
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 .gnash
+drwxr-xr-x    2 root     root          4096 Jul 17 01:40 .gngeo
+drwxr-xr-x    4 root     root          4096 Jan 11  2020 .gpsp
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .handy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .hocoslamfy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .hydracastlelabyrinth
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 .local
+drwxr-xr-x    7 root     root          4096 Dec  5  2019 .mgba_sx
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 .midpath
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 .ngpcemu
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .nkaruga
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .nxengine
+drwx------    2 root     root          4096 Jan 11  2020 .odamex
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 .ohboy
+drwxr-xr-x    4 root     root          4096 Dec 28  2021 .openMSX
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .oswan
+drwxr-xr-x   10 root     root          4096 Dec 28  2021 .pcsx4all
+drwxr-xr-x    6 root     root          4096 Dec 28  2021 .picodrive
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 .pocketsnes
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .potator
+drwxr-xr-x    2 root     root          4096 Jan 11  2020 .powder
+drwxr-xr-x    2 root     root          4096 Jan 11  2020 .puzzletube
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .sdlpal
+drwxr-xr-x    6 root     root          4096 Dec 28  2021 .smsplus
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .snes96_snapshots
+drwxr-xr-x   11 root     root          4096 Dec 28  2021 .snes9x-sx
+drwxr-xr-x    6 root     root          4096 Dec 28  2021 .snesemu
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 .sorrv5
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 .sorrv51
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .spartak
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .srb2
+-rwxrw-rw-    1 root     root            18 Aug 15  2021 .stratagus
+drwxr-xr-x    4 root     root          4096 Jan 11  2020 .supertux
+drwxr-xr-x    7 root     root          4096 Dec 28  2021 .temper
+drwxr-xr-x    2 root     root          4096 Jan 11  2020 .umg
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 .vbemu
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 .wetspot2
+drwxr-xr-x    2 root     root          4096 Jan 27  2025 .wiCon
+-rwxrw-rw-    1 root     root            27 Nov 29  2019 .xmameroot
+drwxr-xr-x    2 root     root          4096 Jan 11  2020 .xump
+drwxr-xr-x    3 root     root          4096 Jan 11  2020 .zeldaNSQ
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 MINI?????
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 apps
+lrwxrwxrwx    1 root     root            15 Jul 30 00:16 home -> data/local/home
+drwxr-xr-x    2 root     root          4096 Oct 26  2019 pal98
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 paltqsy
+drwxr-xr-x    3 root     root          4096 Dec 28  2021 video
+
+$ ls -la /usr/local/home/.esoteric/ 2>/dev/null
+drwxr-xr-x    8 root     root          4096 Jul 28 23:38 .
+drwxr-xr-x   64 root     root          4096 Jul 30 00:16 ..
+-rwxrw-rw-    1 root     root         18009 Mar 18  2020 COPYING
+-rwxrw-rw-    1 root     root          7712 Mar 18  2020 ChangeLog.md
+-rwxrw-rw-    1 root     root           947 Dec  4  2019 README.en.md
+-rwxrw-rw-    1 root     root          1308 Dec  4  2019 README.md
+-rwxrw-rw-    1 root     root          1296 Dec  5  2019 about.txt
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 cache
+-rwxrw-rw-    1 root     root        979144 Dec  5  2019 esoteric
+-rwxrw-rw-    1 root     root           644 Aug  7 22:44 esoteric.conf
+-rwxrw-rw-    1 root     root          4215 Mar 18  2020 esoteric.man.txt
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 input
+-rwxrw-rw-    1 root     root           400 Mar 18  2020 input.conf
+-rw-r--r--    1 root     root             0 Aug  7 22:44 log.txt
+-rwxrw-rw-    1 root     root         20067 Mar 18  2020 logo.png
+-rwxrw-rw-    1 root     root        982480 Dec  4  2019 rmc.xml
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 scripts
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 sections
+drwxr-xr-x   19 root     root          4096 Feb  3  2022 skins
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 translations
+
+$ ls -la /usr/local/home/.esoteric/sections/ 2>/dev/null
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 .
+drwxr-xr-x    8 root     root          4096 Jul 28 23:38 ..
+drwxr-xr-x    2 root     root          4096 Aug  7 12:19 applications
+-rwxrw-rw-    1 root     root           454 Dec  4  2019 default.gcw0.desktop-gkdmini-iux-logo.desktop
+drwxr-xr-x    2 root     root          4096 Jul 30 15:41 emulators
+drwxr-xr-x    3 root     root          4096 Oct 27  2019 favourites
+drwxr-xr-x    3 root     root          4096 Jul 30 15:41 games
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 settings
+drwxr-xr-x    2 root     root          4096 Jul 30 15:41 test
+
+$ ls -la /usr/local/home/.esoteric/sections/applications/ 2>/dev/null
+drwxr-xr-x    2 root     root          4096 Aug  7 12:19 .
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 ..
+-rwxrw-rw-    1 root     root           348 Dec  4  2019 10_terminal
+-rwxrw-rw-    1 root     root           183 Dec  4  2019 20_pyclock
+-rwxrw-rw-    1 root     root           153 Dec  4  2019 25_gmu
+-rwxrw-rw-    1 root     root           126 Dec  4  2019 40_o2xiv
+-rwxrw-rw-    1 root     root           118 Dec  4  2019 50_alsamixer
+-rwxrw-rw-    1 root     root           600 Dec  4  2019 default.gcw0.desktop-?????commander-gkdmini.desktop
+-rw-r--r--    1 root     root           244 Aug  7 02:39 epubreader
+-rwxrw-rw-    1 root     root           460 Dec  4  2019 ffplay.gcw0.desktop-?????ffplay.desktop
+-rwxrw-rw-    1 root     root           466 Dec  4  2019 jstester-1.2.gcw0.desktop-?????.desktop
+-rw-r--r--    1 root     root           174 Aug  7 12:19 netinfo
+
+$ ls -la /usr/local/home/.esoteric/cache/images/ 2>/dev/null
+drwxr-xr-x  179 root     root         12288 Dec  5  2019 .
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 ..
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 32X??picodrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 3do-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 C??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 DOS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Dos???dosbox-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-0-2-97-35-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-0-2-97-44-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-35
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-44
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA35-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA44-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA????airphlaneV0.4
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-1-0-0-1-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-1002
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBNeo-1-0-0-2-2021-1030-FBN
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FC???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Flash
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBC
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBCohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBC???Gambatte-DMSv1.2.1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB3
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???8.4-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???mGBA-SX1.0
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBC-gambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBCgambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC-gambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC-gambatte-1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBCgambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBCohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???Cohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???ohboy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???ohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GG
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Gngeo(Neo Geo)???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Handy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Handy???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MAME4ALL???v1.2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD-PicoDrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD32X
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD???PicoDrive1.97
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD???genplus-sxv0.91
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MGBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 N64-mupen64plus_RG350-20200510
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 NGPC
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 NGPC???v10
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR_3.0_R4165_????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PCE
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PCE???temper
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PS???pcsx4all_CC_6.6.6
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PicoDrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SFC-PocketSNES-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SFC-snes9x-SXv0.96
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS-GG
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS-GG???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SNES???PocketSNES-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SNES???snes9x-SXv0.96
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 TIC80???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Watara
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Watara1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 XMAME-2.0
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 cdogs-sdl
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 cps3-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 easyrpg-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 f7
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-gai-FBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-rg350_20201211_???mod
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-rg350_??mod
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-v0.2.97.44-cps3-test—CPS3?
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba35-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba44-CC-V1.3-FBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba44-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn-sx-test-FBN
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fceux-v2.3.2-gkdmini-2021-03-09
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gkdmini-iux-logo
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 glutexto????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gnash_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gngeo-selector
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gw-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 hotkeys_rg350_20200821_3?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 lameds_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 mame4all-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 md-genplus-sx
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 msx-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nKaruga????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nds-tes
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nds-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 neo-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ngeo
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ons-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 openmsx-0.15-selector20191211?msx????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 pcfx-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 pcfxemu_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ps1?????_by steward??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ps?????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 tic80-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 vbanext_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 vbemu
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 wsc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 wsc???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??-???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???1.6
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???? ????? v5.1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v5.2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v51
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??V5
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????devilutionx
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????.?.??????rg350_cavestory_20200528_1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??99
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v1.10
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???bard007
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??????v2.1.15
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2 Quake2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+
+$ ls -la /usr/share/n/ 2>/dev/null
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 .
+drwxr-xr-x   30 root     root          4096 Dec 28  2021 ..
+-rwxrw-rw-    1 root     root         18009 Feb  1  2020 COPYING
+-rwxrw-rw-    1 root     root          7712 Feb  1  2020 ChangeLog.md
+-rwxrw-rw-    1 root     root           947 Feb  1  2020 README.en.md
+-rwxrw-rw-    1 root     root          1308 Feb  1  2020 README.md
+-rwxrw-rw-    1 root     root          1296 Dec  5  2019 about.txt
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 cache
+-rwxrw-rw-    1 root     root        979144 Dec  5  2019 esoteric
+-rwxrw-rw-    1 root     root           682 Dec  5  2019 esoteric.conf
+-rwxrw-rw-    1 root     root          4215 Feb  1  2020 esoteric.man.txt
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 input
+-rwxrw-rw-    1 root     root           400 Feb  1  2020 input.conf
+-rwxrw-rw-    1 root     root         20067 Feb  1  2020 logo.png
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 scripts
+drwxr-xr-x    8 root     root          4096 Dec 28  2021 sections
+drwxr-xr-x    7 root     root          4096 Dec 28  2021 skins
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 translations
+
+
+############################################################
+# 已安装 opk / 应用
+############################################################
+
+$ ls -la /media/roms/apps/*/ 2>/dev/null
+/media/roms/apps/EPUBReader/:
+drwxr-xr-x    2 root     root         16384 Jul 31 21:46 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root        463805 Aug  7 02:47 EPUBReader.log
+-rwxr-xr-x    1 root     root      10895360 Aug  3 22:48 EPUBReader.opk
+-rwxr-xr-x    1 root     root           272 Aug  3 22:48 default.gcw0.desktop
+-rwxr-xr-x    1 root     root        413352 Aug  3 22:48 epubreader
+-rwxr-xr-x    1 root     root          3384 Aug  3 22:48 epubreader_icon.png
+-rwxr-xr-x    1 root     root          3356 Aug  3 22:48 launch.sh
+-rwxr-xr-x    1 root     root      18609598 Aug  3 22:48 system.ttf
+-rwxr-xr-x    1 root     root         12912 Aug  3 11:46 ????.md
+-rwxr-xr-x    1 root     root          2380 Aug  3 22:48 ?????.txt
+
+/media/roms/apps/OpenBOR/:
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 Paks
+
+/media/roms/apps/af-84/:
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root           488 Jun  6  2021 0.png
+-rwxr-xr-x    1 root     root           493 Jun  6  2021 1.png
+-rwxr-xr-x    1 root     root           488 Jun  6  2021 2.png
+-rwxr-xr-x    1 root     root           481 Jun  6  2021 3.png
+-rwxr-xr-x    1 root     root           493 Jun  6  2021 4.png
+-rwxr-xr-x    1 root     root           493 Jun  6  2021 5.png
+-rwxr-xr-x    1 root     root           489 Jun  6  2021 6.png
+-rwxr-xr-x    1 root     root           491 Jun  6  2021 7.png
+-rwxr-xr-x    1 root     root           434 Jun  6  2021 8.png
+-rwxr-xr-x    1 root     root           481 Jun  6  2021 9.png
+-rwxr-xr-x    1 root     root           147 Jun  6  2021 AF-84
+-rwxr-xr-x    1 root     root           203 Jun  6  2021 AF-84-1.2.gcw0.desktop
+-rwxr-xr-x    1 root     root         30640 Jun  6  2021 AF-84-sdl-1.2
+-rwxr-xr-x    1 root     root          3538 Jun  6  2021 AF-84.png
+-rwxr-xr-x    1 root     root           686 Jun  6  2021 BEEP.wav
+-rwxr-xr-x    1 root     root          3098 Jun  6  2021 Battery.png
+-rwxr-xr-x    1 root     root          3131 Jun  6  2021 BatteryShoot.png
+-rwxr-xr-x    1 root     root           299 Jun  6  2021 Digtal.png
+-rwxr-xr-x    1 root     root          4130 Jun  6  2021 FIRE.wav
+-rwxr-xr-x    1 root     root          5424 Jun  6  2021 FIREPLAN.wav
+-rwxr-xr-x    1 root     root         75856 Jun  6  2021 GAMEOVER.wav
+-rwxr-xr-x    1 root     root           599 Jun  6  2021 GameOver.png
+-rwxr-xr-x    1 root     root          3226 Jun  6  2021 Helicopter.png
+-rwxr-xr-x    1 root     root           486 Jun  6  2021 Heng.png
+-rwxr-xr-x    1 root     root           260 Jun  6  2021 Input0.png
+-rwxr-xr-x    1 root     root           296 Jun  6  2021 Input1.png
+-rwxr-xr-x    1 root     root        113812 Jun  6  2021 LEVELPASS.wav
+-rwxr-xr-x    1 root     root           345 Jun  6  2021 Level.png
+-rwxr-xr-x    1 root     root           222 Jun  6  2021 Life.png
+-rwxr-xr-x    1 root     root         20809 Jun  6  2021 MainBack.png
+-rwxr-xr-x    1 root     root           335 Jun  6  2021 Mute.png
+-rwxr-xr-x    1 root     root          6198 Jun  6  2021 PLANBOOM.wav
+-rwxr-xr-x    1 root     root           516 Jun  6  2021 Plan1.png
+-rwxr-xr-x    1 root     root          3192 Jun  6  2021 Plan2.png
+-rwxr-xr-x    1 root     root          3179 Jun  6  2021 Plan3.png
+-rwxr-xr-x    1 root     root          3168 Jun  6  2021 Plan4.png
+-rwxr-xr-x    1 root     root          3183 Jun  6  2021 Plan5.png
+-rwxr-xr-x    1 root     root          3193 Jun  6  2021 Plan6.png
+-rwxr-xr-x    1 root     root           561 Jun  6  2021 Plan7.png
+-rwxr-xr-x    1 root     root           643 Jun  6  2021 PlanBoom.png
+-rwxr-xr-x    1 root     root           279 Jun  6  2021 PlanShoot.png
+-rwxr-xr-x    1 root     root         35424 Jun  6  2021 SHIPBOOM.wav
+-rwxr-xr-x    1 root     root        858956 Jun  6  2021 START.wav
+-rwxr-xr-x    1 root     root          3152 Jun  6  2021 Score.png
+-rwxr-xr-x    1 root     root          3330 Jun  6  2021 Ship.png
+-rwxr-xr-x    1 root     root          1680 Jun  6  2021 ShipBoom.png
+-rwxr-xr-x    1 root     root           352 Jun  6  2021 Suspend.png
+-rwxr-xr-x    1 root     root        292568 Jun  6  2021 ????1.0.pdf
+
+/media/roms/apps/netinfo/:
+drwxr-xr-x    2 root     root         16384 Aug  7 22:32 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root         18550 Aug  7 16:49 connect_wifi.sh
+-rwxr-xr-x    1 root     root           147 Aug  7 16:49 default.gcw0.desktop
+-rwxr-xr-x    1 root     root         23726 Aug  7 22:44 esoteric_dump.txt
+-rwxr-xr-x    1 root     root          2860 Aug  7 16:49 launch.sh
+-rwxr-xr-x    1 root     root         22180 Aug  7 16:49 netinfo
+-rwxr-xr-x    1 root     root          7897 Aug  7 22:44 netinfo.log
+-rwxr-xr-x    1 root     root           594 Aug  7 16:49 netinfo_icon.png
+-rwxr-xr-x    1 root     root            63 Aug  7 22:44 status.txt
+-rwxr-xr-x    1 root     root         32806 Aug  7 22:44 sysinfo_dump.txt
+-rwxr-xr-x    1 root     root           252 Aug  7 13:31 wifi.conf
+-rwxr-xr-x    1 root     root          1587 Aug  7 22:44 wifi.log
+-rwxr-xr-x    1 root     root             0 Aug  7 22:44 wifi_stderr.txt
+
+/media/roms/apps/sdl-pal98/:
+drwxr-xr-x    5 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root        176432 Feb  3  2021 0.rpg
+-rwxr-xr-x    1 root     root       9079428 Feb  3  2021 1.AVI
+-rwxr-xr-x    1 root     root      31872668 Feb  3  2021 2.AVI
+-rwxr-xr-x    1 root     root      20245444 Feb  3  2021 3.AVI
+-rwxr-xr-x    1 root     root       7825060 Feb  3  2021 4.AVI
+-rwxr-xr-x    1 root     root      82833972 Feb  3  2021 5.AVI
+-rwxr-xr-x    1 root     root      36953012 Feb  3  2021 6.AVI
+-rwxr-xr-x    1 root     root        932346 Feb  3  2021 Abc.mkf
+-rwxr-xr-x    1 root     root        145070 Feb  3  2021 Ball.mkf
+-rwxr-xr-x    1 root     root         63978 Feb  3  2021 Data.mkf
+-rwxr-xr-x    1 root     root        173198 Feb  3  2021 F.mkf
+-rwxr-xr-x    1 root     root       1242530 Feb  3  2021 Fbp.mkf
+-rwxr-xr-x    1 root     root        764381 Feb  3  2021 Fire.mkf
+-rwxr-xr-x    1 root     root      16437766 Feb  3  2021 Gop.mkf
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 HomePage.PAL
+-rwxr-xr-x    1 root     root        707072 Feb  3  2021 LockDLL.dll
+-rwxr-xr-x    1 root     root          2686 Feb  3  2021 Logo.ico
+-rwxr-xr-x    1 root     root        224455 Feb  3  2021 M.msg
+-rwxr-xr-x    1 root     root        331284 Feb  3  2021 MUS.MKF
+-rwxr-xr-x    1 root     root       1614602 Feb  3  2021 Map.mkf
+-rwxr-xr-x    1 root     root       1443503 Feb  3  2021 Mgo.mkf
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 Musics
+-rwxr-xr-x    1 root     root           755 Feb  3  2021 PAL.Administrator.ini
+-rwxr-xr-x    1 root     root         64512 Feb  3  2021 PALOLD.DLL
+-rwxr-xr-x    1 root     root        434176 Feb  3  2021 Pal.dll
+-rwxr-xr-x    1 root     root          8488 Feb  3  2021 Pat.mkf
+-rwxr-xr-x    1 root     root         24576 Feb  3  2021 RelLic.dll
+-rwxr-xr-x    1 root     root        453202 Feb  3  2021 Rgm.mkf
+-rwxr-xr-x    1 root     root       4085342 Feb  3  2021 Rng.mkf
+-rwxr-xr-x    1 root     root      18112888 Feb  3  2021 Sounds.mkf
+-rwxr-xr-x    1 root     root        575270 Feb  3  2021 Sss.mkf
+-rwxr-xr-x    1 root     root        721168 Feb  3  2021 Vb40032.dll
+-rwxr-xr-x    1 root     root          5650 Feb  3  2021 Word.dat
+-rwxr-xr-x    1 root     root             5 Feb  3  2021 featureconfig.txt
+-rwxr-xr-x    1 root     root          2760 Nov 17  2021 icon-32.png
+-rwxr-xr-x    1 root     root           191 Feb  3  2021 lservrc
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 mp3
+-rwxr-xr-x    1 root     root        348160 Feb  3  2021 msvcr71.dll
+-rwxr-xr-x    1 root     root       5679616 Feb  3  2021 pal.exe
+-rwxr-xr-x    1 root     root             0 Sep 27  2020 play.pal
+-rwxr-xr-x    1 root     root         11595 Dec 20  2019 sabr-v3.0.glsl
+-rwxr-xr-x    1 root     root           447 Oct 26  2019 sdlpal.cfg
+-rwxr-xr-x    1 root     root       5391684 May 12  2021 sdlpal.dge
+-rwxr-xr-x    1 root     root           411 Jan 12  2020 sdlpal.glslp
+-rwxr-xr-x    1 root     root         14295 Aug 29  2018 xbrz-freescale.glsl
+
+/media/roms/apps/sdl-palmhb/:
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root       9079428 Feb  3  2021 1.AVI
+-rwxr-xr-x    1 root     root      31872668 Feb  3  2021 2.AVI
+-rwxr-xr-x    1 root     root      20245444 Feb  3  2021 3.AVI
+-rwxr-xr-x    1 root     root       7825060 Feb  3  2021 4.AVI
+-rwxr-xr-x    1 root     root      82833972 Feb  3  2021 5.AVI
+-rwxr-xr-x    1 root     root      36953012 Feb  3  2021 6.AVI
+-rwxr-xr-x    1 root     root       1116162 Feb  3  2021 ABC.MKF
+-rwxr-xr-x    1 root     root        134704 Feb  3  2021 BALL.MKF
+-rwxr-xr-x    1 root     root         67258 Feb  3  2021 DATA.MKF
+-rwxr-xr-x    1 root     root        186966 Feb  3  2021 F.MKF
+-rwxr-xr-x    1 root     root         77986 Feb  3  2021 FANTI.FON
+-rwxr-xr-x    1 root     root       1128064 Feb  3  2021 FBP.MKF
+-rwxr-xr-x    1 root     root        834728 Feb  3  2021 FIRE.MKF
+-rwxr-xr-x    1 root     root      11530322 Feb  3  2021 GOP.MKF
+-rwxr-xr-x    1 root     root         83408 Feb  3  2021 INSTALL.EXE
+-rwxr-xr-x    1 root     root         26097 Feb  3  2021 JS3.EXE
+-rwxr-xr-x    1 root     root        205400 Feb  3  2021 M.MSG
+-rwxr-xr-x    1 root     root       1532520 Feb  3  2021 MAP.MKF
+-rwxr-xr-x    1 root     root       1577442 Feb  3  2021 MGO.MKF
+-rwxr-xr-x    1 root     root        762442 Feb  3  2021 MIDI.MKF
+-rwxr-xr-x    1 root     root          2989 Feb  3  2021 MPU401.DRV
+-rwxr-xr-x    1 root     root        331284 Feb  3  2021 MUS.MKF
+-rwxr-xr-x    1 root     root            22 Feb  3  2021 NEW_M.MSG
+-rwxr-xr-x    1 root     root            42 Feb  3  2021 NEW_WORD.DAT
+-rwxr-xr-x    1 root     root        210128 Feb  3  2021 PAL!.EXE
+-rwxr-xr-x    1 root     root        102831 Feb  3  2021 PAL.EXE
+-rwxr-xr-x    1 root     root            78 Feb  3  2021 PAL.JS3
+-rwxr-xr-x    1 root     root        102187 Feb  3  2021 PALS!.EXE
+-rwxr-xr-x    1 root     root        102187 Feb  3  2021 PALS.EXE
+-rwxr-xr-x    1 root     root          8488 Feb  3  2021 PAT.MKF
+-rwxr-xr-x    1 root     root            25 Feb  3  2021 PLAY.BAT
+-rwxr-xr-x    1 root     root        453202 Feb  3  2021 RGM.MKF
+-rwxr-xr-x    1 root     root       4546074 Feb  3  2021 RNG.MKF
+-rwxr-xr-x    1 root     root        303616 Feb  3  2021 SDL.dll
+-rwxr-xr-x    1 root     root         13312 Feb  3  2021 SDL_net.dll
+-rwxr-xr-x    1 root     root            20 Feb  3  2021 SETUP.DAT
+-rwxr-xr-x    1 root     root        563236 Feb  3  2021 SSS.MKF
+-rwxr-xr-x    1 root     root       1997044 Feb  3  2021 VOC.MKF
+-rwxr-xr-x    1 root     root          5360 Feb  3  2021 WOR16.ASC
+-rwxr-xr-x    1 root     root         82066 Feb  3  2021 WOR16.FON
+-rwxr-xr-x    1 root     root          5892 Feb  3  2021 WORD.DAT
+-rwxr-xr-x    1 root     root         19111 Feb  3  2021 desc.dat
+-rwxr-xr-x    1 root     root       1260544 Feb  3  2021 fmodex.dll
+-rwxr-xr-x    1 root     root          3164 Feb  3  2021 icon-32.png
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 mp3
+-rwxr-xr-x    1 root     root        970912 Feb  3  2021 msvcr120.dll
+-rwxr-xr-x    1 root     root           447 Dec 23  2021 sdlpal.cfg
+-rwxr-xr-x    1 root     root       5391684 May 12  2021 sdlpal.dge
+-rwxr-xr-x    1 root     root        281088 Feb  3  2021 sdlpal.exe
+-rwxr-xr-x    1 root     root          2686 Feb  3  2021 sdlpal.ico
+-rwxr-xr-x    1 root     root            22 Feb  3  2021 sdlpal.rc
+-rwxr-xr-x    1 root     root           162 Feb  3  2021 ~$desc.dat
+-rwxr-xr-x    1 root     root        100352 Feb  3  2021 ???????v2.3.xls
+
+/media/roms/apps/sdl-palmsk/:
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root       1116162 Jul 10  2020 ABC.MKF
+-rwxr-xr-x    1 root     root        135206 Jul 10  2020 BALL.MKF
+-rwxr-xr-x    1 root     root         67290 Jul 10  2020 DATA.MKF
+-rwxr-xr-x    1 root     root        186966 Jul 10  2020 F.MKF
+-rwxr-xr-x    1 root     root         77986 Jul 10  2020 FANTI.FON
+-rwxr-xr-x    1 root     root       1128064 Jul 10  2020 FBP.MKF
+-rwxr-xr-x    1 root     root        834728 Jul 10  2020 FIRE.MKF
+-rwxr-xr-x    1 root     root      11530322 Jul 10  2020 GOP.MKF
+-rwxr-xr-x    1 root     root        205400 Jul 10  2020 M.MSG
+-rwxr-xr-x    1 root     root       1496736 Jul 10  2020 MAP.MKF
+-rwxr-xr-x    1 root     root       1577442 Jul 10  2020 MGO.MKF
+-rwxr-xr-x    1 root     root        762442 Jul 10  2020 MIDI.MKF
+-rwxr-xr-x    1 root     root        331284 Jul 10  2020 MUS.MKF
+-rwxr-xr-x    1 root     root            22 Jul 10  2020 NEW_M.MSG
+-rwxr-xr-x    1 root     root            42 Jul 10  2020 NEW_WORD.DAT
+-rwxr-xr-x    1 root     root          8488 Jul 10  2020 PAT.MKF
+-rwxr-xr-x    1 root     root        453202 Jul 10  2020 RGM.MKF
+-rwxr-xr-x    1 root     root       4546074 Jul 10  2020 RNG.MKF
+-rwxr-xr-x    1 root     root        563236 Jul 10  2020 SSS.MKF
+-rwxr-xr-x    1 root     root      18112888 Jul 10  2020 Sounds.mkf
+-rwxr-xr-x    1 root     root       4804955 Jul 10  2020 VOC.MKF
+-rwxr-xr-x    1 root     root         82306 Jul 10  2020 WOR16(?????).FON
+-rwxr-xr-x    1 root     root          5360 Jul 10  2020 WOR16.ASC
+-rwxr-xr-x    1 root     root         82066 Jul 10  2020 WOR16.FON
+-rwxr-xr-x    1 root     root          5896 Jul 10  2020 WORD.DAT
+-rwxr-xr-x    1 root     root           214 Jul 10  2020 default.gcw0.desktop
+-rwxr-xr-x    1 root     root         19940 Jul 10  2020 desc.dat
+-rwxr-xr-x    1 root     root           247 Jul 10  2020 help.txt
+-rwxr-xr-x    1 root     root          2896 Nov 17  2021 icon-32.png
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 mp3
+-rwxr-xr-x    1 root     root            65 Jul 10  2020 play.sh
+-rwxr-xr-x    1 root     root           449 Dec 23  2021 sdlpal.cfg
+-rwxr-xr-x    1 root     root       5391828 May 13  2021 sdlpal.dge
+
+/media/roms/apps/sdl-paltqsy/:
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root       9079428 May 19  2016 1.AVI
+-rwxr-xr-x    1 root     root      31872668 May 19  2016 2.AVI
+-rwxr-xr-x    1 root     root      20245444 May 19  2016 3.AVI
+-rwxr-xr-x    1 root     root       7825060 May 19  2016 4.AVI
+-rwxr-xr-x    1 root     root      82833972 May 19  2016 5.AVI
+-rwxr-xr-x    1 root     root      36953012 May 19  2016 6.AVI
+-rwxr-xr-x    1 root     root         77986 Nov 17  2010 FANTI.FON
+-rwxr-xr-x    1 root     root        909210 Jan 23  2019 FIRE.MKF
+-rwxr-xr-x    1 root     root         83408 Jun 19  1995 INSTALL.EXE
+-rwxr-xr-x    1 root     root         26097 Jul 25  1995 JS3.EXE
+-rwxr-xr-x    1 root     root        215609 Feb 12  2019 M.MSG
+-rwxr-xr-x    1 root     root        762442 Jun 19  1995 MIDI.MKF
+-rwxr-xr-x    1 root     root        331284 Jun 19  1995 MUS.MKF
+-rwxr-xr-x    1 root     root          2989 Jun 19  1995 Mpu401.drv
+-rwxr-xr-x    1 root     root            22 Sep 21  2014 NEW_M.MSG
+-rwxr-xr-x    1 root     root           102 Oct 19  2018 NEW_WORD.DAT
+-rwxr-xr-x    1 root     root        102831 Aug  8  2003 PAL!.EXE
+-rwxr-xr-x    1 root     root        102187 Aug  2  2003 PALS!.EXE
+-rwxr-xr-x    1 root     root        102187 Feb 16  2005 PALS.EXE
+-rwxr-xr-x    1 root     root         13120 Jan 25  2019 PAT.MKF
+-rwxr-xr-x    1 root     root            25 Jun 19  1995 PLAY.BAT
+-rwxr-xr-x    1 root     root        106378 Jul  1  1995 Pal.exe
+-rwxr-xr-x    1 root     root            78 Dec 20  1995 Pal.js3
+-rwxr-xr-x    1 root     root            82 Jul 25  1995 README
+-rwxr-xr-x    1 root     root          5313 Feb 14  2005 RIX.conf
+-rwxr-xr-x    1 root     root      59524208 Jan 25  2019 RNG.MKF
+-rwxr-xr-x    1 root     root            20 Aug  1  2011 SETUP.DAT
+-rwxr-xr-x    1 root     root        572496 Feb 12  2019 SSS.MKF
+-rwxr-xr-x    1 root     root      18112888 May 19  2016 Sounds.mkf
+-rwxr-xr-x    1 root     root         26102 Aug 29  2017 WOR16.ASC
+-rwxr-xr-x    1 root     root        393226 Aug 29  2017 WOR16.FON
+-rwxr-xr-x    1 root     root          5860 Feb 12  2019 WORD.DAT
+-rwxr-xr-x    1 root     root       1040424 Jan 27  2019 abc.mkf
+-rwxr-xr-x    1 root     root        150634 Jan 24  2019 ball.mkf
+-rwxr-xr-x    1 root     root         63368 Feb 12  2019 data.mkf
+-rwxr-xr-x    1 root     root         17353 Feb 13  2019 desc.dat
+-rwxr-xr-x    1 root     root          2877 Nov  5  2005 f.c
+-rwxr-xr-x    1 root     root        941645 Nov  5  2005 f.exe
+-rwxr-xr-x    1 root     root        156616 Feb 21  1995 f.mkf
+-rwxr-xr-x    1 root     root          2686 Nov  5  2005 fbp.c
+-rwxr-xr-x    1 root     root        941627 Nov  5  2005 fbp.exe
+-rwxr-xr-x    1 root     root       1702982 Jan 23  2019 fbp.mkf
+-rwxr-xr-x    1 root     root      16153322 Jan 31  2019 gop.mkf
+-rwxr-xr-x    1 root     root          2737 Nov 17  2021 icon-32.png
+-rwxr-xr-x    1 root     root             0 Jul  2  2018 log.txt
+-rwxr-xr-x    1 root     root          5915 Nov  5  2005 map.c
+-rwxr-xr-x    1 root     root        944262 Sep 11  2017 map.exe
+-rwxr-xr-x    1 root     root       1663384 Feb  5  2019 map.mkf
+-rwxr-xr-x    1 root     root       1587704 Dec 25  2018 mgo.mkf
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 mp3
+-rwxr-xr-x    1 root     root          1125 Mar 18  2015 palx.conf
+-rwxr-xr-x    1 root     root       1148416 Apr 20  2015 palx.exe
+-rwxr-xr-x    1 root     root             0 Sep 27  2020 play.pal
+-rwxr-xr-x    1 root     root          5879 Nov 19  2010 readme.txt
+-rwxr-xr-x    1 root     root        488458 Dec 25  2018 rgm.mkf
+-rwxr-xr-x    1 root     root          5628 Nov  5  2005 rle.c
+-rwxr-xr-x    1 root     root        944233 Nov  5  2005 rle.exe
+-rwxr-xr-x    1 root     root         10062 Nov  2  2005 rng.c
+-rwxr-xr-x    1 root     root        949051 Dec  3  2005 rng.exe
+-rwxr-xr-x    1 root     root           448 Dec 23  2021 sdlpal.cfg
+-rwxr-xr-x    1 root     root           417 Sep 28  2020 sdlpal.cfg.bak
+-rwxr-xr-x    1 root     root       5391684 May 12  2021 sdlpal.dge
+-rwxr-xr-x    1 root     root          2686 Nov 15  2014 sdlpal.ico
+-rwxr-xr-x    1 root     root            22 Jul 20  2014 sdlpal.rc
+-rwxr-xr-x    1 root     root      18936856 Dec 22  2018 txt.mkf
+-rwxr-xr-x    1 root     root         82306 May  6  2009 words.FON
+-rwxr-xr-x    1 root     root           162 Sep  5  2017 ~$desc.dat
+-rwxr-xr-x    1 root     root         77986 Jul  4  2004 ????.FON
+-rwxr-xr-x    1 root     root         77986 Feb 16  2005 ????.FON
+
+/media/roms/apps/sdljy-clzr+/:
+drwxr-xr-x   10 root     root         16384 Jan 11  2020 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root          4013 May 30  2021 config.lua
+drwxr-xr-x    2 root     root         32768 Dec 25  2021 data
+-rwxr-xr-x    1 root     root            53 Jan 11  2020 debug.txt
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 doc
+-rwxr-xr-x    1 root     root             0 Jan 11  2020 error.txt
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 fonts
+drwxr-xr-x    4 root     root         16384 Dec 25  2021 freepats
+-rwxr-xr-x    1 root     root          4807 May 30  2021 freepats.cfg
+-rwxr-xr-x    1 root     root        155420 May 30  2021 hzmb.dat
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 libs.dingux
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 pic
+drwxr-xr-x    4 root     root         16384 Jan 11  2020 script
+-rwxr-xr-x    1 root     root        261352 May 30  2021 sdljy.bin
+-rwxr-xr-x    1 root     root           224 May 30  2021 sdljy.dge
+-rwxr-xr-x    1 root     root          5664 May 30  2021 sdljy.png
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 sound
+-rwxr-xr-x    1 root     root          1240 May 30  2021 timidity.cfg
+
+/media/roms/apps/sdljy-tsj/:
+drwxr-xr-x    9 root     root         16384 Dec  5  2019 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root          4984 Apr  1  2021 config.lua
+drwxr-xr-x    3 root     root         32768 Dec 25  2021 data
+-rwxr-xr-x    1 root     root          1153 Dec  5  2019 debug.txt
+-rwxr-xr-x    1 root     root            71 Dec  5  2019 error.txt
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 fonts
+-rwxr-xr-x    1 root     root        155420 Jul 26  2009 hzmb.dat
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 list
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 pic
+drwxr-xr-x    4 root     root         16384 Dec  5  2019 script
+-rwxr-xr-x    1 root     root        324208 Apr 12  2021 sdljy.bin
+-rwxr-xr-x    1 root     root           224 May 19  2019 sdljy.dge
+-rwxr-xr-x    1 root     root          5577 Dec 31  2012 sdljy.png
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 sound
+drwxr-xr-x    3 root     root         16384 Dec 25  2021 timidity
+
+/media/roms/apps/sdljy/:
+drwxr-xr-x   10 root     root         16384 Jan 27  2025 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root          4012 May 30  2021 config.lua
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 data
+-rwxr-xr-x    1 root     root           157 Jan 27  2025 debug.txt
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 doc
+-rwxr-xr-x    1 root     root             0 Jan 27  2025 error.txt
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 font
+drwxr-xr-x    4 root     root         16384 Dec 25  2021 freepats
+-rwxr-xr-x    1 root     root          4662 May 30  2021 freepats.cfg
+-rwxr-xr-x    1 root     root        155420 May 30  2021 hzmb.dat
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 libs.dingux
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 pic
+-rwxr-xr-x    1 root     root         16779 May 30  2021 readme.txt
+drwxr-xr-x    4 root     root         16384 Jan 27  2025 script
+-rwxr-xr-x    1 root     root        261352 May 30  2021 sdljy.bin
+-rwxr-xr-x    1 root     root           224 May 30  2021 sdljy.dge
+-rwxr-xr-x    1 root     root         60631 May 30  2021 sdljy.png
+drwxr-xr-x    2 root     root         16384 Dec 25  2021 sound
+-rwxr-xr-x    1 root     root          1228 May 30  2021 timidity.cfg
+
+/media/roms/apps/xmame_2_0/:
+drwxr-xr-x    5 root     root         16384 Dec  5  2019 .
+drwxr-xr-x   14 root     root         16384 Aug  7 11:32 ..
+-rwxr-xr-x    1 root     root             1 Jan 15  2020 .xmamelast
+drwxr-xr-x   11 root     root         16384 Dec 25  2021 mame4all2
+drwxr-xr-x   13 root     root         16384 Dec 25  2021 xmame69
+drwxr-xr-x   14 root     root         16384 Dec  5  2019 xmame84
+
+$ find /media/roms/apps -maxdepth 2 -iname '*.opk' 2>/dev/null
+/media/roms/apps/KeyTest.opk
+/media/roms/apps/EPUBReader/EPUBReader.opk
+/media/roms/apps/NetInfo.opk
+
+$ cat /media/roms/apps/EPUBReader/default.gcw0.desktop 2>/dev/null
+[Desktop Entry]
+Name=Epub阅读器
+Comment=EPUB 3.0 reader for GDK mini (MIPS/uClibc/SDL1.2) v1.1.3
+Exec=epubreader
+Icon=epubreader_icon
+Type=Application
+Categories=applications;
+X-OD-NeedsJoystick=true
+X-OD-NeedsGSensor=false
+StartupNotify=true
+Terminal=false
+
+
+############################################################
+# 电源 / 背光 / 系统节点
+############################################################
+
+$ ls /sys/class/power_supply/ 2>/dev/null
+battery
+usb
+
+$ cat /sys/class/power_supply/*/capacity 2>/dev/null
+100
+
+$ cat /sys/class/power_supply/*/status 2>/dev/null
+Discharging
+
+$ ls /sys/class/backlight/ 2>/dev/null
+(无输出)
+
+$ cat /sys/class/backlight/*/max_brightness 2>/dev/null
+(无输出)
+
+$ cat /sys/class/backlight/*/brightness 2>/dev/null
+(无输出)
+
+$ ls /sys/devices/system/cpu/cpu0/cpufreq/ 2>/dev/null
+(无输出)
+
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
+(无输出)
+
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null
+(无输出)
+
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies 2>/dev/null
+(无输出)
+
+
+############################################################
+# 输入设备 / 按键
+############################################################
+
+$ cat /proc/bus/input/devices 2>/dev/null
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="analog joystick"
+P: Phys=
+S: Sysfs=/devices/virtual/input/input0
+U: Uniq=
+H: Handlers=linkdev 
+B: PROP=0
+B: EV=9
+B: ABS=3
+
+I: Bus=0000 Vendor=0000 Product=0000 Version=0001
+N: Name="pwm-haptic"
+P: Phys=
+S: Sysfs=/devices/platform/input/input1
+U: Uniq=
+H: Handlers=event1 
+B: PROP=0
+B: EV=200001
+B: FF=1 7030000 0 0
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="gpio-keys"
+P: Phys=gpio-keys/input0
+S: Sysfs=/devices/platform/gpio-keys/input/input2
+U: Uniq=
+H: Handlers=event0 linkdev 
+B: PROP=0
+B: EV=100003
+B: KEY=3fc0 4400 3000400 3000c002
+
+I: Bus=0019 Vendor=0000 Product=0000 Version=0000
+N: Name="linkdev device (Analog 2-axis 8-button 2-hat)"
+P: Phys=
+S: Sysfs=/devices/platform/linkdev/input/input3
+U: Uniq=
+H: Handlers=kbd js0 event2 
+B: PROP=0
+B: EV=10000b
+B: KEY=6c1b0000 0 0 0 0 0 3fc0 4400 3000400 3000c002
+B: ABS=30003
+
+I: Bus=0019 Vendor=0001 Product=0001 Version=0100
+N: Name="pmu-supplyer"
+P: Phys=m1kbd/input2
+S: Sysfs=/devices/platform/jz-i2c.1/i2c-1/1-0035/pmu-supplyer/input/input4
+U: Uniq=
+H: Handlers=kbd event3 
+B: PROP=0
+B: EV=7
+B: KEY=100000 10 0 0
+B: REL=0
+
+$ ls -la /dev/input/ 2>/dev/null
+drwxr-xr-x    3 root     root           180 Aug  8  2026 .
+drwxr-xr-x   11 root     root          3640 Aug  8  2026 ..
+drwxr-xr-x    2 root     root           120 Aug  8  2026 by-path
+crw-------    1 root     root       13,  64 Aug  8  2026 event0
+crw-------    1 root     root       13,  65 Aug  8  2026 event1
+crw-------    1 root     root       13,  66 Aug  8  2026 event2
+crw-------    1 root     root       13,  67 Aug  8  2026 event3
+crw-rw-r--    1 root     root       13,   0 Aug  8  2026 js0
+crw-------    1 root     root       13,  63 Aug  8  2026 mice
+
+$ ls /dev/ 2>/dev/null
+audio
+autofs
+block
+bus
+char
+console
+core
+cpu_dma_latency
+disk
+dsp
+fb0
+fd
+full
+i2c-1
+i2c-2
+input
+ipu
+jz-efuse
+kmem
+kmsg
+log
+loop-control
+loop0
+loop1
+loop2
+loop3
+loop4
+loop5
+loop6
+loop7
+mem
+mixer
+mmcblk0
+mmcblk0p1
+mmcblk0p2
+mmcblk0p3
+mmcblk0p4
+mmcblk1
+mmcblk1p1
+net
+network_latency
+network_throughput
+null
+ptmx
+pts
+ptyp0
+ptyp1
+ptyp2
+ptyp3
+ptyp4
+ptyp5
+ptyp6
+ptyp7
+ptyp8
+ptyp9
+ptypa
+ptypb
+ptypc
+ptypd
+ptype
+ptypf
+random
+rfkill
+rg350_kbd
+rmem
+rtc
+rtc0
+shm
+snd
+soc_vpu
+stderr
+stdin
+stdout
+tty
+tty0
+tty1
+tty10
+tty11
+tty12
+tty13
+tty14
+tty15
+tty16
+tty17
+tty18
+tty19
+tty2
+tty20
+tty21
+tty22
+tty23
+tty24
+tty25
+tty26
+tty27
+tty28
+tty29
+tty3
+tty30
+tty31
+tty32
+tty33
+tty34
+tty35
+tty36
+tty37
+tty38
+tty39
+tty4
+tty40
+tty41
+tty42
+tty43
+tty44
+tty45
+tty46
+tty47
+tty48
+tty49
+tty5
+tty50
+tty51
+tty52
+tty53
+tty54
+tty55
+tty56
+tty57
+tty58
+tty59
+tty6
+tty60
+tty61
+tty62
+tty63
+tty7
+tty8
+tty9
+ttyS1
+ttyp0
+ttyp1
+ttyp2
+ttyp3
+ttyp4
+ttyp5
+ttyp6
+ttyp7
+ttyp8
+ttyp9
+ttypa
+ttypb
+ttypc
+ttypd
+ttype
+ttypf
+uinput
+urandom
+vcs
+vcs1
+vcs2
+vcs3
+vcs4
+vcs5
+vcs6
+vcs7
+vcs8
+vcs9
+vcsa
+vcsa1
+vcsa2
+vcsa3
+vcsa4
+vcsa5
+vcsa6
+vcsa7
+vcsa8
+vcsa9
+watchdog
+watchdog0
+zero
+
+
+############################################################
+# 显示 / framebuffer
+############################################################
+
+$ ls -la /dev/fb* 2>/dev/null
+crw-------    1 root     root       29,   0 Aug  8  2026 /dev/fb0
+
+$ cat /sys/class/graphics/fb0/virtual_size 2>/dev/null
+320,1440
+
+$ cat /sys/class/graphics/fb0/bits_per_pixel 2>/dev/null
+32
+
+$ cat /sys/class/graphics/fb0/modes 2>/dev/null
+U:320x240p-60
+
+
+############################################################
+# 启动 / 服务 / 环境
+############################################################
+
+$ cat /etc/inittab 2>/dev/null
+# /etc/inittab
+#
+# Copyright (C) 2001 Erik Andersen <andersen@codepoet.org>
+#
+# Note: BusyBox init doesn't support runlevels.  The runlevels field is
+# completely ignored by BusyBox init. If you want runlevels, use
+# sysvinit.
+#
+# Format for each entry: <id>:<runlevels>:<action>:<process>
+#
+# id        == tty to run on, or empty for /dev/console
+# runlevels == ignored
+# action    == one of sysinit, respawn, askfirst, wait, and once
+# process   == program to run
+
+# Startup the system
+::sysinit:/bin/mount -o size=64k,mode=0755 -t devtmpfs udev /dev
+::sysinit:/bin/mkdir -p /dev/pts /dev/shm
+
+::sysinit:/bin/mount -a
+::sysinit:/bin/mkdir -p /var/cache /var/lib /var/lock /var/run /var/log /var/empty /var/spool /var/tmp /media/data /media/roms
+::sysinit:/bin/echo -n 1 > /proc/sys/vm/overcommit_memory
+
+# now run any rc scripts
+::sysinit:/etc/init.d/rcS start
+
+# startup has finished; stop logging to console
+::sysinit:/bin/dmesg -D
+
+# Launch the main application
+tty1::respawn:/usr/sbin/frontend_start
+ttyS1::respawn:/sbin/getty -n -l /usr/sbin/rootlogin -L ttyS1 115200 vt100
+
+# Stuff to do for the 3-finger salute
+::ctrlaltdel:/sbin/reboot
+
+# Stuff to do before rebooting
+null::shutdown:/etc/init.d/rcS stop
+null::shutdown:/bin/umount -a -r
+null::shutdown:/sbin/swapoff -a
+
+$ ls /etc/init.d/ 2>/dev/null
+S01logging
+S03mountmedia.sh
+S08etc-overlay.sh
+S09hostname.sh
+S10udev
+S15localfsinit.sh
+S20watchdog.sh
+S40network
+S98localscripts.sh
+S99daemon.sh
+S99swap.sh
+back
+rcS
+
+$ echo PATH=$PATH
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+
+$ cat /proc/cmdline 2>/dev/null
+console=ttyS1,115200n8 mem=128M@0x0 init=/linuxrc root=/dev/mmcblk0p3 rw rootdelay=1
+
+$ ps 2>/dev/null | head -50
+  PID USER       VSZ STAT COMMAND
+    1 root      1424 S    init
+    2 root         0 SW   [kthreadd]
+    3 root         0 SW   [ksoftirqd/0]
+    4 root         0 SW   [kworker/0:0]
+    5 root         0 SW<  [kworker/0:0H]
+    6 root         0 SW   [kworker/u2:0]
+    7 root         0 SW   [rcu_preempt]
+    8 root         0 SW   [rcu_bh]
+    9 root         0 SW   [rcu_sched]
+   10 root         0 SW   [watchdog/0]
+   11 root         0 SW<  [khelper]
+   12 root         0 SW   [kdevtmpfs]
+   13 root         0 SW<  [writeback]
+   14 root         0 SW<  [bioset]
+   15 root         0 SW<  [kblockd]
+   16 root         0 SW   [khubd]
+   18 root         0 SW<  [cfg80211]
+   19 root         0 SW   [khungtaskd]
+   20 root         0 SW   [kswapd0]
+   21 root         0 SW   [fsnotify_mark]
+   22 root         0 SW<  [crypto]
+   36 root         0 SW<  [miki_test]
+   38 root         0 SW   [irq/9-jz-asoc-a]
+   39 root         0 SW   [mmcqd/0]
+   40 root         0 SW<  [deferwq]
+   41 root         0 SW   [kworker/0:2]
+   42 root         0 SW   [kworker/u2:2]
+   43 root         0 DW   [led thread 2]
+   48 root         0 SW<  [kworker/0:1H]
+   51 root         0 SW   [jbd2/mmcblk0p1-]
+   52 root         0 SW<  [ext4-dio-unwrit]
+   55 root         0 SW   [mmcqd/1]
+   73 root      1408 S    /sbin/syslogd -n
+   74 root      1408 S    /sbin/klogd -n
+   78 root         0 SW   [jbd2/mmcblk0p2-]
+   79 root         0 SW<  [ext4-dio-unwrit]
+   90 root      2276 S    /sbin/udevd -d
+  111 root      1404 S    watchdog -T 5 -t 1 /dev/watchdog
+  166 root       596 S    /usr/sbin/power_daemon
+  167 root       608 S    /usr/sbin/key_daemon
+  173 root      1420 S    -sh
+  344 root         0 SW<  [loop0]
+  411 root         0 SW   [RTW_CMD_THREAD]
+  438 root      4340 S    wpa_supplicant -B -Dwext -iwlan0 -c/tmp/wpa.conf
+  514 root      1424 S    udhcpc -i wlan0 -n
+  982 root      1408 S    sh -c /bin/sh
+ 1000 root      1416 S    /bin/sh
+ 1751 root      1944 R    find / -iname *.ttf
+ 1983 root         0 SW   [kworker/0:1]
+
+
+############################################################
+# esoteric 菜单配置
+############################################################
+
+$ cat /usr/local/home/.esoteric/esoteric.conf 2>/dev/null
+# IUX config file
+# lines starting with a # are ignored
+
+skin="典藏馆-Museum(Classic)"
+tvOutMode="NTSC"
+lang="中文简体"
+sectionFilter=""
+launcherPath="/media/roms/roms/Flash/"
+externalAppPath="/media/APPS"
+cpuMenu="Level 2"
+defaultCpuSpeed="Level 2"
+quickStartPath="4:4"
+buttonRepeatRate=130
+resolutionX=320
+resolutionY=240
+videoBpp=32
+backlightLevel=70
+backlightTimeout=60
+powerTimeout=5
+globalVolume=70
+aspectRatio=1
+outputLogs=1
+saveSelection=1
+quickStartGame=0
+whitemode=0
+firstboot=0
+fastCache=0
+section=4
+link=4
+respectHiddenLinks=0
+setHwLevelsOnBoot=1
+version=1
+sectionsort="emulators,games,test,favourites,applications,settings"
+
+$ ls /usr/local/home/.esoteric/ 2>/dev/null
+COPYING
+ChangeLog.md
+README.en.md
+README.md
+about.txt
+cache
+esoteric
+esoteric.conf
+esoteric.man.txt
+input
+input.conf
+log.txt
+logo.png
+rmc.xml
+scripts
+sections
+skins
+translations
+
+$ ls -R /usr/local/home/.esoteric/sections/ 2>/dev/null
+/usr/local/home/.esoteric/sections/:
+applications
+default.gcw0.desktop-gkdmini-iux-logo.desktop
+emulators
+favourites
+games
+settings
+test
+
+/usr/local/home/.esoteric/sections/applications:
+10_terminal
+20_pyclock
+25_gmu
+40_o2xiv
+50_alsamixer
+default.gcw0.desktop-?????commander-gkdmini.desktop
+epubreader
+ffplay.gcw0.desktop-?????ffplay.desktop
+jstester-1.2.gcw0.desktop-?????.desktop
+netinfo
+
+/usr/local/home/.esoteric/sections/emulators:
+default.gcw0.desktop-Dos???dosbox-v11.desktop
+default.gcw0.desktop-GBA???8.4-cc.desktop
+default.gcw0.desktop-GBGBC???ohboy-no.desktop
+default.gcw0.desktop-MD32X.desktop
+default.gcw0.desktop-NGPC???v10.desktop
+default.gcw0.desktop-OpenBOR.desktop
+default.gcw0.desktop-PCE???temper.desktop
+default.gcw0.desktop-SMS-GG.desktop
+default.gcw0.desktop-SNES???PocketSNES-v11.desktop
+default.gcw0.desktop-wsc???.desktop
+fba_ux.gcw0.desktop-FBA-0-2-97-35-2021-0309.desktop
+fba_ux.gcw0.desktop-FBA-0-2-97-44-2021-0309.desktop
+xmame
+xmame-69
+xmame.desktop
+
+/usr/local/home/.esoteric/sections/favourites:
+GB.GBC??-???2.desktop
+GB.GBC??-????1.desktop
+GB.GBC??-????2.desktop
+none
+
+/usr/local/home/.esoteric/sections/favourites/none:
+
+/usr/local/home/.esoteric/sections/games:
+AF-841
+SDLJY
+SDLJY-clzr+
+default.gcw0.desktop-cdogs-sdl.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-???1.6.desktop
+default.gcw0.desktop-??.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-???? ????? v5.1.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-??.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-??V5.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-?????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????2.desktop
+default.gcw0.desktop-????2.desktop
+default.gcw0.desktop-?????.desktop
+default.gcw0.desktop-?????devilutionx.desktop
+default.gcw0.desktop-?????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-?????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-??99.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????v1.10.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-?????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-??????v2.1.15.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-???.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+default.gcw0.desktop-????.desktop
+none
+sdl-pal98
+sdl-palhqmy
+sdl-palmhb
+sdl-palmhyy
+sdl-palmsk
+sdl-paltqsy
+sdljy-clzr
+sdljy-ptt
+sdljy-tsj
+
+/usr/local/home/.esoteric/sections/games/none:
+
+/usr/local/home/.esoteric/sections/settings:
+default.gcw0.desktop-wifi.desktop
+
+/usr/local/home/.esoteric/sections/test:
+default.gcw0.desktop-3do-test.desktop
+default.gcw0.desktop-Watara1.desktop
+default.gcw0.desktop-easyrpg-test.desktop
+default.gcw0.desktop-ons-test.desktop
+default.gcw0.desktop-pcfx-test.desktop
+default.gcw0.desktop-tic80-test.desktop
+default.gcw0.desktop-vbemu.desktop
+default.gcw0.desktop-?????-test.desktop
+default.gcw0.desktop-??-test.desktop
+default.gcw0.desktop-???-test.desktop
+default.gcw0.desktop-????.desktop
+fba_ux.gcw0.desktop-FBA-35.desktop
+
+$ cat /usr/local/home/.esoteric/sections/applications/epubreader 2>/dev/null
+title=Epub阅读器
+description=EPUB 3.0 reader v1.1.3
+icon=/media/roms/apps/EPUBReader/epubreader_icon.png
+exec=/usr/bin/opkrun
+params=-m default.gcw0.desktop "/media/roms/apps/EPUBReader/EPUBReader.opk"
+consoleapp=false
+selectorbrowser=false
+
+$ cat /usr/local/home/.esoteric/sections/applications/netinfo 2>/dev/null
+title=GDK NET INFO
+description=WiFi info + telnet
+icon=/media/roms/apps/netinfo/netinfo_icon.png
+exec=/media/roms/apps/netinfo/netinfo
+consoleapp=false
+selectorbrowser=false
+
+$ ls -la /usr/local/home/.esoteric/cache/images/ 2>/dev/null
+drwxr-xr-x  179 root     root         12288 Dec  5  2019 .
+drwxr-xr-x    5 root     root          4096 Dec 28  2021 ..
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 32X??picodrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 3do-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 C??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 DOS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Dos???dosbox-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-0-2-97-35-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-0-2-97-44-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-35
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA-44
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA35-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA44-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBA????airphlaneV0.4
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-1-0-0-1-2021-0309
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-1002
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBNeo-1-0-0-2-2021-1030-FBN
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FBN??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 FC???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Flash
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBC
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBCohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB-GBC???Gambatte-DMSv1.2.1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GB3
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???8.4-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBA???mGBA-SX1.0
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBC-gambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBCgambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC-gambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC-gambatte-1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBCgambatte
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBCohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???Cohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???ohboy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GBGBC???ohboy-no
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 GG
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Gngeo(Neo Geo)???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Handy
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Handy???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MAME4ALL???v1.2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD-PicoDrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD32X
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD???PicoDrive1.97
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MD???genplus-sxv0.91
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 MGBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 N64-mupen64plus_RG350-20200510
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 NGPC
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 NGPC???v10
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR_3.0_R4165_????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 OpenBOR??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PCE
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PCE???temper
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PS???pcsx4all_CC_6.6.6
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 PicoDrive
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SFC-PocketSNES-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SFC-snes9x-SXv0.96
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS-GG
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SMS-GG???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SNES???PocketSNES-v11
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 SNES???snes9x-SXv0.96
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 TIC80???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Watara
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 Watara1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 XMAME-2.0
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 cdogs-sdl
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 cps3-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 easyrpg-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 f7
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-gai-FBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-rg350_20201211_???mod
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-rg350_??mod
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba-v0.2.97.44-cps3-test—CPS3?
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba35-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba44-CC-V1.3-FBA
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fba44-cc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn-ex
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fbn-sx-test-FBN
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 fceux-v2.3.2-gkdmini-2021-03-09
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gkdmini-iux-logo
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 glutexto????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gnash_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gngeo-selector
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 gw-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 hotkeys_rg350_20200821_3?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 lameds_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 mame4all-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 md-genplus-sx
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 msx-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nKaruga????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nds-tes
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 nds-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 neo-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ngeo
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ons-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 openmsx-0.15-selector20191211?msx????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 pcfx-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 pcfxemu_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ps1?????_by steward??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ps?????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 tic80-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 vbanext_350h
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 vbemu
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 wsc
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 wsc???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??-???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???1.6
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???? ????? v5.1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v5.2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v51
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??V5
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????devilutionx
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????.?.??????rg350_cavestory_20200528_1
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??99
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????v1.10
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???bard007
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ?????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ??????v2.1.15
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ???
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????2 Quake2
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????-test
+drwxr-xr-x    2 root     root          4096 Dec 28  2021 ????

@@ -1,0 +1,17 @@
+#!/bin/sh
+# netinfo OPK 启动器：确保配置存在，然后启动 netinfo（netinfo 会后台拉起 connect_wifi.sh）
+DIR=$(dirname "$0")
+cd "$DIR"
+
+export SDL_VIDEODRIVER=fbcon
+export SDL_FBDEV=/dev/fb0
+export SDL_NOMOUSE=1
+
+CONF="/media/roms/apps/netinfo/wifi.conf"
+mkdir -p "$(dirname "$CONF")"
+if [ ! -f "$CONF" ]; then
+    # 首次运行：把 OPK 内的模板拷到 SD 卡可写位置，供用户编辑
+    cp "$DIR/wifi.conf" "$CONF" 2>/dev/null
+fi
+
+exec ./netinfo

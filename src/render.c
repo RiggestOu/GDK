@@ -124,6 +124,7 @@ reader_ui_t *ui_init(const char *font_path) {
     ui->brightness  = 100;
     ui->accent_r = 90; ui->accent_g = 160; ui->accent_b = 240;
     ui->margin  = 6;
+    ui->render_epoch = 0;
     fprintf(stderr,"[diag] TTF_FontHeight... "); fflush(stderr);
     ui->line_h  = TTF_FontHeight(ui->font) + 2;
     fprintf(stderr,"OK line_h=%d\n", ui->line_h); fflush(stderr);
@@ -282,6 +283,7 @@ void ui_text(reader_ui_t *ui, int x, int y, const char *text) {
 
 /* ---------- 配置变更 ---------- */
 void ui_set_font_size(reader_ui_t *ui, int size) {
+    ui->render_epoch++;   /* 字号变 → 阅读页整页缓存失效 */
     fprintf(stderr,"[diag] set_font_size 入口 size=%d ui=%p\n", size, (void*)ui); fflush(stderr);
     if (size < 10) size = 10;
     if (size > 28) size = 28;
@@ -308,10 +310,11 @@ void ui_set_font_size(reader_ui_t *ui, int size) {
     ui->title_h  = TTF_FontHeight(ui->font) + 6;
     ui->status_h = ui_status_height(ui, "L1+Y或圆4 查看按键说明");
 }
-void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
+void ui_set_fg(reader_ui_t *ui, int r, int g, int b) { ui->render_epoch++; ui->fg_r = r; ui->fg_g = g; ui->fg_b = b; }
 void ui_set_brightness(reader_ui_t *ui, int pct) {
     if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
+    ui->render_epoch++;   /* 亮度变 → 阅读页整页缓存失效（dim 已烤进每行渲染） */
     ui->brightness = pct;
 }
 
@@ -492,22 +495,22 @@ void ui_draw_menu(reader_ui_t *ui, const char *title,
    - 单行模式（小/中/大）：脚注(left, 左对齐) 与 HUD 簇(★/时间/亮度/电量, 右对齐) 同行。
    - 两行模式（特大）：脚注在顶行(left)，HUD 簇在底行(right)，左在上、右在下。
    HUD 簇由 draw_hud 单独绘制，其纵向位置由 bottom_two_lines 决定，与这里一致。 */
+/* 前向声明（footer_wrap 定义见下方「脚注折行缓存」段） */
+static char **footer_wrap(reader_ui_t *ui, const char *text, int *nout);
 void ui_draw_status(reader_ui_t *ui, const char *left, const char *right) {
     int top = status_top(ui);
     int h = ui->status_h;
     ui_rect(ui, 0, top, SCREEN_W, h, 30, 32, 40);
     ui_rect(ui, 0, top, SCREEN_W, 1, 0, 0, 0);
 
-    /* 脚注(left)：单行模式与 HUD 同行(顶行)；两行模式在顶行（HUD 在底行，见 draw_hud）。 */
+    /* 脚注(left)：单行模式与 HUD 同行(顶行)；两行模式在顶行（HUD 在底行，见 draw_hud）。
+       复用脚注折行缓存，避免每次重算（记忆化在 footer_wrap 中）。 */
     int fy = top + 2;
     if (left && *left) {
-        char **wl; int n;
-        wl = wrap_text_font(ui->font, left, SCREEN_W - 2 * ui->margin, &n);
+        int n; char **wl = footer_wrap(ui, left, &n);
         for (int i = 0; i < n; i++) {
             ui_text_rgb(ui, ui->margin, fy + i * ui->line_h, wl[i], 200, 210, 230);
         }
-        for (int i = 0; i < n; i++) free(wl[i]);
-        free(wl);
     }
     (void)right; /* right 已不再使用（HUD 簇由 draw_hud 单独绘制） */
 }
@@ -542,6 +545,31 @@ static void draw_hud(reader_ui_t *ui) {
 }
 /* 供 layout.c / main.c 跨文件叠加 HUD（内部调用 static draw_hud） */
 void ui_draw_hud(reader_ui_t *ui) { draw_hud(ui); }
+
+/* 暴露当前 HUD 时钟/电量，供阅读页整页缓存判定是否需重绘 */
+const char *ui_hud_clock(void) { return g_hud_clock; }
+int ui_hud_batt(void) { return g_hud_batt; }
+
+/* ---------- 脚注折行缓存 ----------
+ * 阅读页底部脚注是固定字符串（"L1+Y或圆4 查看按键说明"），但原实现每帧都：
+ *   ui_status_height() 全量分词 + 逐词 TTF_SizeUTF8 测量一次，ui_draw_status() 再全量分词测量一次，
+ *   即每帧两次昂贵的按词折行。这里按 (文本指针, 字体指针) 记忆化，命中即直接复用上次结果，
+ *   把每帧两次折行降为仅在文本/字号确实变化时一次。其它状态传入不同字符串 → 指针不同 → 各自重算，无回归。 */
+static const char *fc_text = NULL;
+static TTF_Font   *fc_font = NULL;
+static char      **fc_lines = NULL;
+static int         fc_n = 0;
+static char **footer_wrap(reader_ui_t *ui, const char *text, int *nout) {
+    if (nout) *nout = 0;
+    if (!text || !*text) { if (nout) *nout = 0; return NULL; }
+    if (fc_text == text && fc_font == ui->font && fc_lines) { if (nout) *nout = fc_n; return fc_lines; }
+    /* 失效：释放旧缓存 */
+    if (fc_lines) { for (int i = 0; i < fc_n; i++) free(fc_lines[i]); free(fc_lines); fc_lines = NULL; fc_n = 0; }
+    fc_lines = wrap_text_font(ui->font, text, SCREEN_W - 2 * ui->margin, &fc_n);
+    fc_text = text; fc_font = ui->font;
+    if (nout) *nout = fc_n;
+    return fc_lines;
+}
 
 /* ---------- 错误屏 ---------- */
 void ui_draw_error(reader_ui_t *ui, const char *title, const char *msg) {
@@ -637,9 +665,8 @@ char **wrap_text_font(TTF_Font *font, const char *text, int maxw, int *out_n) {
 int ui_status_height(reader_ui_t *ui, const char *left) {
     int fn = 1;
     if (left && *left) {
-        char **wl = wrap_text_font(ui->font, left, SCREEN_W - 2 * ui->margin, &fn);
-        for (int i = 0; i < fn; i++) free(wl[i]);
-        free(wl);
+        int n; char **wl = footer_wrap(ui, left, &n);   /* 复用脚注折行缓存（记忆化） */
+        fn = (n > 0) ? n : 1;
     }
     if (fn < 1) fn = 1;
     if (bottom_two_lines(ui)) {
