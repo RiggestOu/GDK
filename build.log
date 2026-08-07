@@ -1,0 +1,225 @@
+==> 编译 ...
+rm -f main.o epub.o zip.o render.o util.o epubreader
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c main.c -o main.o
+main.c:40: warning: "KEY_MENU" redefined
+   40 | #define KEY_MENU        102
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:217: note: this is the location of the previous definition
+  217 | #define KEY_MENU                139     /* Menu (show menu) */
+      | 
+main.c:118: warning: "BTN_B" redefined
+  118 | #define BTN_B 0        /* 物理 B 键 / 圆2（硬件复制不可区分）：返回/退出 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:384: note: this is the location of the previous definition
+  384 | #define BTN_B                   BTN_EAST
+      | 
+main.c:119: warning: "BTN_A" redefined
+  119 | #define BTN_A 1        /* 物理 A 键 / 圆1（硬件复制不可区分）：确认/下一页 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:382: note: this is the location of the previous definition
+  382 | #define BTN_A                   BTN_SOUTH
+      | 
+main.c:120: warning: "BTN_X" redefined
+  120 | #define BTN_X 2        /* X 键：书签 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:387: note: this is the location of the previous definition
+  387 | #define BTN_X                   BTN_NORTH
+      | 
+main.c:121: warning: "BTN_Y" redefined
+  121 | #define BTN_Y 3        /* Y 键：菜单 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:389: note: this is the location of the previous definition
+  389 | #define BTN_Y                   BTN_WEST
+      | 
+main.c:122: warning: "BTN_SELECT" redefined
+  122 | #define BTN_SELECT 4   /* SELECT 键：返回/退出 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:395: note: this is the location of the previous definition
+  395 | #define BTN_SELECT              0x13a
+      | 
+main.c:123: warning: "BTN_START" redefined
+  123 | #define BTN_START 5    /* START 键：息屏 */
+      | 
+In file included from /opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input.h:18,
+                 from main.c:16:
+/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/linux/input-event-codes.h:396: note: this is the location of the previous definition
+  396 | #define BTN_START               0x13b
+      | 
+main.c: In function ‘event_to_action’:
+main.c:436:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |     ^~
+main.c:480:62: note: in expansion of macro ‘KM_CLAMP’
+  480 |             if (b == BTN_L1 || b == BTN_R1) { g_km_oy -= 20; KM_CLAMP(); }  /* 肩键上下平移 */
+      |                                                              ^~~~~~~~
+main.c:436:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |                                   ^~
+main.c:480:62: note: in expansion of macro ‘KM_CLAMP’
+  480 |             if (b == BTN_L1 || b == BTN_R1) { g_km_oy -= 20; KM_CLAMP(); }  /* 肩键上下平移 */
+      |                                                              ^~~~~~~~
+main.c:437:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |     ^~
+main.c:480:62: note: in expansion of macro ‘KM_CLAMP’
+  480 |             if (b == BTN_L1 || b == BTN_R1) { g_km_oy -= 20; KM_CLAMP(); }  /* 肩键上下平移 */
+      |                                                              ^~~~~~~~
+main.c:437:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |                                   ^~
+main.c:480:62: note: in expansion of macro ‘KM_CLAMP’
+  480 |             if (b == BTN_L1 || b == BTN_R1) { g_km_oy -= 20; KM_CLAMP(); }  /* 肩键上下平移 */
+      |                                                              ^~~~~~~~
+main.c:436:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |     ^~
+main.c:484:71: note: in expansion of macro ‘KM_CLAMP’
+  484 |             if (ev->jhat.value & SDL_HAT_UP)         { g_km_oy += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |                                   ^~
+main.c:484:71: note: in expansion of macro ‘KM_CLAMP’
+  484 |             if (ev->jhat.value & SDL_HAT_UP)         { g_km_oy += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |     ^~
+main.c:484:71: note: in expansion of macro ‘KM_CLAMP’
+  484 |             if (ev->jhat.value & SDL_HAT_UP)         { g_km_oy += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |                                   ^~
+main.c:484:71: note: in expansion of macro ‘KM_CLAMP’
+  484 |             if (ev->jhat.value & SDL_HAT_UP)         { g_km_oy += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |     ^~
+main.c:485:71: note: in expansion of macro ‘KM_CLAMP’
+  485 |             else if (ev->jhat.value & SDL_HAT_DOWN)  { g_km_oy -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |                                   ^~
+main.c:485:71: note: in expansion of macro ‘KM_CLAMP’
+  485 |             else if (ev->jhat.value & SDL_HAT_DOWN)  { g_km_oy -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |     ^~
+main.c:485:71: note: in expansion of macro ‘KM_CLAMP’
+  485 |             else if (ev->jhat.value & SDL_HAT_DOWN)  { g_km_oy -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |                                   ^~
+main.c:485:71: note: in expansion of macro ‘KM_CLAMP’
+  485 |             else if (ev->jhat.value & SDL_HAT_DOWN)  { g_km_oy -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |     ^~
+main.c:486:71: note: in expansion of macro ‘KM_CLAMP’
+  486 |             else if (ev->jhat.value & SDL_HAT_LEFT)  { g_km_ox += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |                                   ^~
+main.c:486:71: note: in expansion of macro ‘KM_CLAMP’
+  486 |             else if (ev->jhat.value & SDL_HAT_LEFT)  { g_km_ox += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |     ^~
+main.c:486:71: note: in expansion of macro ‘KM_CLAMP’
+  486 |             else if (ev->jhat.value & SDL_HAT_LEFT)  { g_km_ox += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |                                   ^~
+main.c:486:71: note: in expansion of macro ‘KM_CLAMP’
+  486 |             else if (ev->jhat.value & SDL_HAT_LEFT)  { g_km_ox += 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |     ^~
+main.c:487:71: note: in expansion of macro ‘KM_CLAMP’
+  487 |             else if (ev->jhat.value & SDL_HAT_RIGHT) { g_km_ox -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:436:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  436 |     if (g_km_oy > 0) g_km_oy = 0; if (g_km_oy < mn) g_km_oy = mn; \
+      |                                   ^~
+main.c:487:71: note: in expansion of macro ‘KM_CLAMP’
+  487 |             else if (ev->jhat.value & SDL_HAT_RIGHT) { g_km_ox -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |     ^~
+main.c:487:71: note: in expansion of macro ‘KM_CLAMP’
+  487 |             else if (ev->jhat.value & SDL_HAT_RIGHT) { g_km_ox -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c:437:35: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+  437 |     if (g_km_ox > 0) g_km_ox = 0; if (g_km_ox < -160) g_km_ox = -160; \
+      |                                   ^~
+main.c:487:71: note: in expansion of macro ‘KM_CLAMP’
+  487 |             else if (ev->jhat.value & SDL_HAT_RIGHT) { g_km_ox -= 20; KM_CLAMP(); }
+      |                                                                       ^~~~~~~~
+main.c: In function ‘enter_picview’:
+main.c:1314:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+ 1314 |     if (z < 20) z = 20; if (z > 400) z = 400;
+      |     ^~
+main.c:1314:25: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+ 1314 |     if (z < 20) z = 20; if (z > 400) z = 400;
+      |                         ^~
+main.c: In function ‘zoom_picview’:
+main.c:1337:5: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+ 1337 |     if (DW < 1) DW = 1; if (DH < 1) DH = 1;
+      |     ^~
+main.c:1337:25: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+ 1337 |     if (DW < 1) DW = 1; if (DH < 1) DH = 1;
+      |                         ^~
+main.c: In function ‘read_book’:
+main.c:1766:21: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+ 1766 |                     if (nz < 20) nz = 20; if (nz > 400) nz = 400;
+      |                     ^~
+main.c:1766:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+ 1766 |                     if (nz < 20) nz = 20; if (nz > 400) nz = 400;
+      |                                           ^~
+main.c: In function ‘run_browser’:
+main.c:2076:13: warning: this ‘if’ clause does not guard... [-Wmisleading-indentation]
+ 2076 |             if (first+visible > list.n) first = list.n - visible; if (first<0) first=0;
+      |             ^~
+main.c:2076:67: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the ‘if’
+ 2076 |             if (first+visible > list.n) first = list.n - visible; if (first<0) first=0;
+      |                                                                   ^~
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c epub.c -o epub.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c zip.c -o zip.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c render.c -o render.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -O2 -Wall -Wno-unused -march=mips32r2 -mtune=mips32r2 -mhard-float -mfp32 -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include -I/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/include/SDL -c util.c -o util.o
+/opt/gcw0-toolchain/bin/mipsel-gcw0-linux-uclibc-gcc -L/opt/gcw0-toolchain/mipsel-gcw0-linux-uclibc/sysroot/usr/lib -Wl,-rpath,'$ORIGIN/lib:/media/roms/apps/epubreader/lib' -o epubreader main.o epub.o zip.o render.o util.o -lSDL -lSDL_ttf -lSDL_image -lz -lpthread
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.o: in function `get_layout':
+main.c:(.text+0x1670): undefined reference to `layout_chapter'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x1718): undefined reference to `layout_free'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.o: in function `read_book':
+main.c:(.text+0x2f28): undefined reference to `layout_free'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x2f88): undefined reference to `chapter_text_chars'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x345c): undefined reference to `ui_draw_reader_layout'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x4900): undefined reference to `layout_free'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x527c): undefined reference to `layout_free'
+/opt/gcw0-toolchain/bin/../lib/gcc/mipsel-gcw0-linux-uclibc/11.1.0/../../../../mipsel-gcw0-linux-uclibc/bin/ld: main.c:(.text+0x5c8c): undefined reference to `img_decode'
+collect2: error: ld returned 1 exit status
+make: *** [Makefile.gcw0:28: epubreader] Error 1
