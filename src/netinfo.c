@@ -181,13 +181,45 @@ static int is_ascii_str(const char* s) {
 
 /* ============ v2 新增: 系统诊断采集 ============ */
 
-/* 电池: /sys/class/power_supply/battery/{capacity,status} */
+/* 电池: GKDmini 固件 capacity 节点放电时常恒=100(驱动 bug, 见 EPUB 阅读器 main.c)。
+   改参考 EPUB 阅读器做法, 用 voltage_now 电压区间映射(V_EMPTY=3.40V / V_FULL=4.19V)做主,
+   capacity 仅兜底; status 仍用于充放电符号。 */
 static int read_battery(int* pct, char* st, int n) {
     *pct = -1; *st = 0;
-    FILE* f = fopen("/sys/class/power_supply/battery/capacity", "r");
-    if (f) { if (fscanf(f, "%d", pct) != 1) *pct = -1; fclose(f); }
-    f = fopen("/sys/class/power_supply/battery/status", "r");
-    if (f) { if (fgets(st, n, f)) st[strcspn(st, "\r\n")] = 0; fclose(f); }
+    static const char *vpaths[] = {
+        "/sys/class/power_supply/battery/voltage_now",
+        "/sys/class/power_supply/BAT/voltage_now",
+        "/sys/class/power_supply/bat/voltage_now",
+        "/sys/class/power_supply/jz-battery/voltage_now",
+        NULL
+    };
+    static const char *cpaths[] = {
+        "/sys/class/power_supply/battery/capacity",
+        "/sys/class/power_supply/BAT/capacity",
+        "/sys/class/power_supply/bat/capacity",
+        NULL
+    };
+    /* 单节锂电典型区间(微伏): 空 3.40V / 满 4.19V (与 EPUB 阅读器一致) */
+    const long V_EMPTY = 3400000, V_FULL = 4190000;
+    long vraw = -1;
+    for (int i = 0; vpaths[i]; i++) {
+        FILE *f = fopen(vpaths[i], "r");
+        if (f) { long mv = -1; if (fscanf(f, "%ld", &mv) == 1) vraw = mv; fclose(f); if (vraw > 0) break; }
+    }
+    int craw = -1;
+    for (int i = 0; cpaths[i]; i++) {
+        FILE *f = fopen(cpaths[i], "r");
+        if (f) { int v = -1; if (fscanf(f, "%d", &v) == 1) craw = v; fclose(f); if (craw >= 0) break; }
+    }
+    if (vraw > 1000) {                 /* 真实电压(微伏): 线性映射 */
+        long p = (vraw - V_EMPTY) * 100L / (V_FULL - V_EMPTY);
+        if (p < 0) p = 0; else if (p > 100) p = 100;
+        *pct = (int)p;
+    } else if (craw >= 0) {           /* 无电压节点才退化用 capacity */
+        *pct = craw;
+    }
+    FILE* fs = fopen("/sys/class/power_supply/battery/status", "r");
+    if (fs) { if (fgets(st, n, fs)) st[strcspn(st, "\r\n")] = 0; fclose(fs); }
     return (*pct >= 0);
 }
 /* 充放电状态 -> ASCII 标记: +=充电 -=放电 ==满电 ~=未充电 */
@@ -424,9 +456,11 @@ static void start_wifi(void) {
     }
     char cmd[500];
     /* 关键: 不再把输出丢进 /dev/null, 否则脚本静默失败时无从排查。
-       stdout+stderr 落盘到 SD 卡 wifi_stderr.txt, 拔卡即可看到真实报错。 */
+       stdout+stderr 落盘到 SD 卡 wifi_stderr.txt, 拔卡即可看到真实报错。
+       用 setsid 让 connect_wifi 脱离 netinfo 会话(自成 session), 这样退出/重进 netinfo
+       都不会连带杀掉 telnet 子进程 —— telnet 在 netinfo 退出后仍常驻, 不再随 app 退出而断。 */
     snprintf(cmd, sizeof cmd,
-             "sh \"%s\" >/media/roms/apps/netinfo/wifi_stderr.txt 2>&1 &", exe);
+             "setsid sh \"%s\" >/media/roms/apps/netinfo/wifi_stderr.txt 2>&1 </dev/null &", exe);
     nlog("start_wifi: %s (stderr-> wifi_stderr.txt)\n", exe);
     system(cmd);
 }

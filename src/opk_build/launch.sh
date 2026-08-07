@@ -41,7 +41,7 @@ if [ -d "$SEC_DIR" ]; then
     done
     # 2) 写入规范链接文件（与 sdl-palmsk 同格式：icon= 绝对路径 PNG）
     if [ -d "$SEC_DIR/applications" ] && \
-       printf 'title=Epub阅读器\ndescription=EPUB 3.0 reader v1.1.3\nicon=/media/roms/apps/EPUBReader/epubreader_icon.png\nexec=/usr/bin/opkrun\nparams=-m default.gcw0.desktop "/media/roms/apps/EPUBReader/EPUBReader.opk"\nconsoleapp=false\nselectorbrowser=false\n' > "$LINK_FILE" 2>/dev/null; then
+       printf 'title=Epub阅读器\ndescription=EPUB 3.0 reader v1.2.0\nicon=/media/roms/apps/EPUBReader/epubreader_icon.png\nexec=/usr/bin/opkrun\nparams=-m default.gcw0.desktop "/media/roms/apps/EPUBReader/EPUBReader.opk"\nconsoleapp=false\nselectorbrowser=false\n' > "$LINK_FILE" 2>/dev/null; then
         echo "  [reg] 已写入 $LINK_FILE:"
         sed 's/^/    /' "$LINK_FILE"
     else

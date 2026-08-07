@@ -1824,8 +1824,18 @@ static void read_book(reader_ui_t *ui, epub_t *ep, const char *book, cfg_t *cfg)
             }
         } else if (st == ST_BMLIST) {
             switch (act) {
-                case A_UP:   if (bm_sel>0) bm_sel--; break;
-                case A_DOWN: if (bm_sel<n_bm-1) bm_sel++; break;
+                case A_UP:
+                    if (n_bm > 0) {
+                        if (bm_sel > 0) bm_sel--;
+                        else bm_sel = n_bm - 1;   /* 到顶再按上 → 跳到最后一个书签(循环) */
+                    }
+                    break;
+                case A_DOWN:
+                    if (n_bm > 0) {
+                        if (bm_sel < n_bm - 1) bm_sel++;
+                        else bm_sel = 0;          /* 到底再按下 → 跳到第一个书签(循环) */
+                    }
+                    break;
                 case A_SELECT: case A_MENU:
                     if (n_bm > 0 && bm_sel < n_bm) {
                         int tsp=bms[bm_sel].sp, tpg=bms[bm_sel].pg;
@@ -2145,7 +2155,7 @@ int main(int argc, char **argv) {
         FILE *lf = fopen(epath, "w");
         if (lf) {
             fputs("title=Epub阅读器\n"
-                  "description=EPUB 3.0 reader v1.1.3\n"
+                  "description=EPUB 3.0 reader v1.2.0\n"
                   "icon=/media/roms/apps/EPUBReader/epubreader_icon.png\n"
                   "exec=/usr/bin/opkrun\n"
                   "params=-m default.gcw0.desktop \"/media/roms/apps/EPUBReader/EPUBReader.opk\"\n"
